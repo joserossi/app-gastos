@@ -128,7 +128,7 @@ class ErrorServidor extends Error {}
 async function api(action, payload = {}, cfg = config()) {
   if (!cfg) throw new ErrorConfig('Falta configurar la conexión');
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 25000);
+  const timer = setTimeout(() => ctrl.abort(), 45000);
   let resp;
   try {
     resp = await fetch(cfg.url, {
@@ -139,7 +139,7 @@ async function api(action, payload = {}, cfg = config()) {
       signal: ctrl.signal,
     });
   } catch {
-    throw new ErrorRed('Sin conexión');
+    throw new ErrorRed(ctrl.signal.aborted ? 'Google tarda en responder' : 'Sin conexión');
   } finally {
     clearTimeout(timer);
   }
@@ -148,8 +148,12 @@ async function api(action, payload = {}, cfg = config()) {
   try { data = await resp.json(); }
   catch { throw new ErrorConfig('Respuesta inválida: revisá que la Web App tenga acceso "Cualquier usuario"'); }
   if (!data.ok) {
-    if (/token/i.test(data.error)) throw new ErrorConfig('Token inválido');
-    throw new ErrorServidor(data.error || 'Error del servidor');
+    const err = String(data.error || 'Error del servidor');
+    if (/token/i.test(err)) throw new ErrorConfig('Token inválido');
+    // Solo un dato inválido se descarta; cualquier otro error (servidor ocupado, etc.) se reintenta
+    const invalido = data.invalido === true || (data.invalido === undefined && /inválid|desconocida|^Falta/i.test(err));
+    if (invalido) throw new ErrorServidor(err);
+    throw new ErrorRed(data.reintentar || /candado|lock/i.test(err) ? 'Servidor ocupado, reintentando' : err);
   }
   return data;
 }
@@ -211,8 +215,11 @@ async function sincronizar() {
     enVuelo = null;
     sincronizando = false;
     render();
+    clearTimeout(reintentoTimer);
+    if (errorSync && store.get(K.cola, []).length && config()) reintentoTimer = setTimeout(sincronizar, 30000);
   }
 }
+let reintentoTimer;
 
 async function cargarMes(mes) {
   const { items } = await api('list', { mes });

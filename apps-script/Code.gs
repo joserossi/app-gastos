@@ -40,29 +40,49 @@ function doGet() {
   return ContentService.createTextOutput('API de gastos funcionando.');
 }
 
+/** Error por dato inválido: la app descarta ese gasto en vez de reintentarlo. */
+function Invalido_(msg) { const e = new Error(msg); e.invalido = true; return e; }
+
 function doPost(e) {
   let res;
-  const lock = LockService.getScriptLock();
   try {
     const req = JSON.parse(e.postData.contents);
     const token = PropertiesService.getScriptProperties().getProperty('TOKEN');
-    if (!token || req.token !== token) throw new Error('Token inválido');
+    if (!token || req.token !== token) return json_({ ok: false, error: 'Token inválido' });
 
-    lock.waitLock(20000);
     switch (req.action) {
-      case 'ping':   res = { ok: true }; break;
-      case 'add':    res = { ok: true, item: guardar_(validar_(req.item), true) }; break;
-      case 'update': res = { ok: true, item: guardar_(validar_(req.item), false) }; break;
-      case 'delete': borrar_(String(req.item && req.item.id || '')); res = { ok: true }; break;
-      case 'list':   res = { ok: true, items: listar_(String(req.mes || '')) }; break;
-      default: throw new Error('Acción desconocida: ' + req.action);
+      // Lecturas: sin bloqueo, responden aunque haya una escritura en curso
+      case 'ping': res = { ok: true }; break;
+      case 'list': res = { ok: true, items: listar_(String(req.mes || '')) }; break;
+      // Escrituras: con bloqueo corto para que dos cambios no se pisen
+      case 'add': case 'update': case 'delete':
+        res = conBloqueo_(function () {
+          if (req.action === 'delete') { borrar_(String(req.item && req.item.id || '')); return { ok: true }; }
+          return { ok: true, item: guardar_(validar_(req.item), req.action === 'add') };
+        });
+        break;
+      default: throw Invalido_('Acción desconocida: ' + req.action);
     }
   } catch (err) {
-    res = { ok: false, error: String(err && err.message || err) };
+    res = { ok: false, error: String(err && err.message || err), invalido: !!(err && err.invalido) };
+  }
+  return json_(res);
+}
+
+function conBloqueo_(fn) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return { ok: false, reintentar: true, error: 'Servidor ocupado' };
+  try {
+    const r = fn();
+    SpreadsheetApp.flush();
+    return r;
   } finally {
     lock.releaseLock();
   }
-  return ContentService.createTextOutput(JSON.stringify(res)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function json_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ---------- internos ----------
@@ -73,15 +93,15 @@ function hoja_() {
 }
 
 function validar_(it) {
-  if (!it || typeof it !== 'object') throw new Error('Falta el gasto');
+  if (!it || typeof it !== 'object') throw Invalido_('Falta el gasto');
   const id = String(it.id || '');
-  if (!/^[A-Za-z0-9-]{8,64}$/.test(id)) throw new Error('ID inválido');
+  if (!/^[A-Za-z0-9-]{8,64}$/.test(id)) throw Invalido_('ID inválido');
   const fecha = String(it.fecha || '');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) throw new Error('Fecha inválida');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) throw Invalido_('Fecha inválida');
   const monto = Number(it.monto);
-  if (!isFinite(monto) || monto <= 0) throw new Error('Monto inválido');
+  if (!isFinite(monto) || monto <= 0) throw Invalido_('Monto inválido');
   const categoria = String(it.categoria || '');
-  if (CATEGORIAS.indexOf(categoria) < 0) throw new Error('Categoría inválida');
+  if (CATEGORIAS.indexOf(categoria) < 0) throw Invalido_('Categoría inválida');
   let descripcion = String(it.descripcion || '').trim().slice(0, 200);
   // Evita que un texto se interprete como fórmula en el Sheet
   if (/^[=+\-@]/.test(descripcion)) descripcion = "'" + descripcion;
@@ -110,14 +130,14 @@ function guardar_(it, esAlta) {
 }
 
 function borrar_(id) {
-  if (!id) throw new Error('Falta el ID');
+  if (!id) throw Invalido_('Falta el ID');
   const sh = hoja_();
   const fila = buscarFila_(sh, id);
   if (fila) sh.deleteRow(fila);
 }
 
 function listar_(mes) {
-  if (!/^\d{4}-\d{2}$/.test(mes)) throw new Error('Mes inválido');
+  if (!/^\d{4}-\d{2}$/.test(mes)) throw Invalido_('Mes inválido');
   const sh = hoja_();
   const ultima = sh.getLastRow();
   if (ultima < 2) return [];
