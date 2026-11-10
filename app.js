@@ -12,7 +12,9 @@ const CATEGORIAS = [
 ];
 const EMO = Object.fromEntries(CATEGORIAS.map(c => [c.id, c.emo]));
 const K = { config: 'gastos.config', cola: 'gastos.cola', cache: 'gastos.cache' };
-const fmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const fmtEntero = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+const fmtDecimal = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = { format: n => (Number.isInteger(Math.round(n * 100) / 100) ? fmtEntero : fmtDecimal).format(n) };
 const $ = sel => document.querySelector(sel);
 
 // ---------- Almacenamiento local (cola + caché) ----------
@@ -34,7 +36,10 @@ function moverMes(mes, delta) {
   const d = new Date(y, m - 1 + delta, 1);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
 }
-const nombreMes = mes => parseISO(mes + '-01').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+const nombreMes = mes => {
+  const s = parseISO(mes + '-01').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
 const nombreDia = fecha => parseISO(fecha).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
 
 const nuevoId = () => (crypto.randomUUID ? crypto.randomUUID()
@@ -350,25 +355,49 @@ function abrirConfig() {
   const c = store.get(K.config, {}) || {};
   $('#cfg-url').value = c.url || '';
   $('#cfg-token').value = c.token || '';
-  $('#cfg-msg').textContent = '';
+  cfgMsg('');
   $('#dlg-config').showModal();
 }
 
-async function guardarConfig() {
-  const cfg = { url: $('#cfg-url').value.trim(), token: $('#cfg-token').value.trim() };
-  const msg = $('#cfg-msg');
-  if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(cfg.url)) { msg.textContent = 'La URL debe empezar con https://script.google.com/ y terminar en /exec'; return; }
-  if (!cfg.token) { msg.textContent = 'Falta el token.'; return; }
-  msg.textContent = 'Probando conexión…';
+function cfgMsg(texto, esError) {
+  const m = $('#cfg-msg');
+  m.textContent = texto;
+  m.hidden = !texto;
+  m.classList.toggle('err', !!esError);
+  if (texto) m.scrollIntoView({ block: 'nearest' });
+}
+
+/** Tolera lo que agrega el copiar/pegar: espacios, saltos, comillas, puntos finales, texto alrededor. */
+function limpiarUrl(txt) {
+  const s = String(txt).replace(/[\s​-‍﻿`"'“”‘’<>]/g, '');
+  const m = s.match(/https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec/);
+  return m ? m[0] : s;
+}
+const limpiarToken = txt => String(txt).replace(/[^A-Za-z0-9]/g, '');
+
+async function guardarConfig(ev) {
+  if (ev) ev.preventDefault();
+  const cfg = { url: limpiarUrl($('#cfg-url').value), token: limpiarToken($('#cfg-token').value) };
+  $('#cfg-url').value = cfg.url;
+  $('#cfg-token').value = cfg.token;
+  document.activeElement && document.activeElement.blur();   // baja el teclado para que se vea el mensaje
+
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(cfg.url)) {
+    return cfgMsg('✗ La URL no es válida. Tiene que ser https://script.google.com/macros/s/…/exec', true);
+  }
+  if (cfg.token.length < 20) return cfgMsg(`✗ El token parece incompleto (${cfg.token.length} caracteres, deberían ser 40).`, true);
+
+  cfgMsg('Probando conexión…');
   $('#cfg-guardar').disabled = true;
   try {
     await api('ping', {}, cfg);
     store.set(K.config, cfg);
+    if (!config()) throw new Error('Safari no permitió guardar la configuración en este teléfono');
     $('#dlg-config').close();
     toast('Conexión configurada ✓');
     sincronizar();
   } catch (e) {
-    msg.textContent = '✗ ' + e.message;
+    cfgMsg('✗ ' + e.message, true);
   } finally {
     $('#cfg-guardar').disabled = false;
   }
@@ -398,6 +427,7 @@ function init() {
   $('#mes-sig').addEventListener('click', () => cambiarMes(1));
   $('#btn-config').addEventListener('click', abrirConfig);
   $('#cfg-guardar').addEventListener('click', guardarConfig);
+  $('#form-config').addEventListener('submit', guardarConfig);
   $('#cfg-cancelar').addEventListener('click', () => $('#dlg-config').close());
   $('#estado').addEventListener('click', () => (config() ? sincronizar() : abrirConfig()));
 

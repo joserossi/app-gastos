@@ -94,14 +94,14 @@
   </nav>
 
   <dialog id="dlg-config">
-    <form method="dialog" id="form-config">
+    <form id="form-config" autocomplete="off" novalidate>
       <h2>Configuración</h2>
       <p class="sub">Se guarda solo en este teléfono.</p>
+      <p id="cfg-msg" class="cfg-msg" aria-live="polite" hidden></p>
       <label for="cfg-url">URL de la Web App (termina en /exec)</label>
-      <input id="cfg-url" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="off" spellcheck="false">
+      <input id="cfg-url" type="text" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false">
       <label for="cfg-token">Token</label>
-      <input id="cfg-token" type="password" autocapitalize="off" spellcheck="false">
-      <p id="cfg-msg" class="sub" aria-live="polite"></p>
+      <input id="cfg-token" type="text" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder="40 letras y números">
       <div class="acciones-edicion">
         <button id="cfg-cancelar" class="secundario" type="button">Cancelar</button>
         <button id="cfg-guardar" class="primario" type="button">Probar y guardar</button>
