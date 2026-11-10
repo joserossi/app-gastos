@@ -47,12 +47,69 @@ const nuevoId = () => (crypto.randomUUID ? crypto.randomUUID()
 
 /** Acepta "1.234,50", "1234,5", "1234.5", "1.500" (= mil quinientos). */
 function parseMonto(txt) {
-  let s = String(txt).replace(/[\s$]/g, '');
+  let s = String(txt).replace(/[\s$]/g, '').replace(/[.,]$/, '');
   if (!s) return NaN;
   if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
   else if ((s.match(/\./g) || []).length > 1 || /^\d{1,3}\.\d{3}$/.test(s)) s = s.replace(/\./g, '');
   if (!/^\d+(\.\d{1,2})?$/.test(s)) return NaN;
   return Number(s);
+}
+
+// ---------- Campo de monto con separador de miles ----------
+const MAX_ENTEROS = 12;
+const conMiles = digitos => digitos.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+/** 1500.5 → "1.500,50" (para mostrar un gasto al editarlo). */
+function montoATexto(n) {
+  const [e, d] = (Math.round(n * 100) / 100).toFixed(2).split('.');
+  return d === '00' ? conMiles(e) : conMiles(e) + ',' + d;
+}
+
+/** Texto a medio escribir → con puntos de miles. La primera coma es la decimal (máx. 2 decimales). */
+function formatearEscritura(raw) {
+  const i = raw.indexOf(',');
+  let ent = (i < 0 ? raw : raw.slice(0, i)).replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, MAX_ENTEROS);
+  const dec = i < 0 ? null : raw.slice(i + 1).replace(/\D/g, '').slice(0, 2);
+  if (dec !== null && ent === '') ent = '0';
+  return dec === null ? conMiles(ent) : conMiles(ent) + ',' + dec;
+}
+
+function alEscribirMonto(e) {
+  const inp = e.target;
+  let raw = inp.value;
+  let caret = inp.selectionStart == null ? raw.length : inp.selectionStart;
+
+  if (e.inputType === 'insertFromPaste') {
+    const n = parseMonto(raw);
+    inp.value = isNaN(n) ? formatearEscritura(raw) : montoATexto(n);
+    caret = inp.value.length;
+  } else {
+    // Los puntos los pone la app: un "." tipeado se toma como coma decimal
+    if (e.data === '.' && raw[caret - 1] === '.') raw = raw.slice(0, caret - 1) + ',' + raw.slice(caret);
+    // Mantener el cursor después de la misma cantidad de dígitos/coma
+    let antes = raw.slice(0, caret).replace(/[^\d,]/g, '').length;
+    inp.value = formatearEscritura(raw);
+    if (inp.value.startsWith('0,') && !/^[^\d,]*0/.test(raw)) antes++;   // se agregó un 0 adelante de la coma
+    caret = 0;
+    for (let n = 0; caret < inp.value.length && n < antes; caret++) if (/[\d,]/.test(inp.value[caret])) n++;
+  }
+  if (document.activeElement === inp) inp.setSelectionRange(caret, caret);
+  actualizarMontoUI();
+  ocultarError();
+}
+
+function actualizarMontoUI() {
+  const inp = $('#monto');
+  const largo = inp.value.length;
+  $('#monto-borrar').hidden = !largo;
+  inp.classList.toggle('mediano', largo > 9 && largo <= 12);
+  inp.classList.toggle('chico', largo > 12);
+}
+
+function borrarMonto() {
+  $('#monto').value = '';
+  actualizarMontoUI();
+  $('#monto').focus();
 }
 
 // ---------- Estado ----------
@@ -272,6 +329,7 @@ function limpiarForm(conservarFecha) {
   editando = null;
   categoriaSel = null;
   $('#monto').value = '';
+  actualizarMontoUI();
   $('#descripcion').value = '';
   if (!conservarFecha) setFecha(hoyISO());
   $('#titulo').textContent = 'Nuevo gasto';
@@ -284,7 +342,8 @@ function limpiarForm(conservarFecha) {
 function editar(g) {
   editando = g;
   categoriaSel = g.categoria;
-  $('#monto').value = String(g.monto).replace('.', ',');
+  $('#monto').value = montoATexto(g.monto);
+  actualizarMontoUI();
   $('#descripcion').value = g.descripcion || '';
   setFecha(g.fecha);
   $('#titulo').textContent = 'Editar gasto';
@@ -418,7 +477,9 @@ function init() {
   limpiarForm();
   $('#fecha').max = hoyISO();
   $('#form').addEventListener('submit', guardar);
-  $('#monto').addEventListener('input', ocultarError);
+  $('#monto').addEventListener('input', alEscribirMonto);
+  $('#monto-borrar').addEventListener('pointerdown', e => e.preventDefault()); // no cerrar el teclado
+  $('#monto-borrar').addEventListener('click', borrarMonto);
   document.querySelectorAll('[data-dias]').forEach(b => b.addEventListener('click', () => setFecha(haceDias(Number(b.dataset.dias)))));
   $('#btn-borrar').addEventListener('click', borrar);
   $('#btn-cancelar').addEventListener('click', () => { limpiarForm(); mostrarVista('resumen'); });

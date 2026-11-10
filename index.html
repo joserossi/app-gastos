@@ -27,11 +27,11 @@
     <!-- CARGAR / EDITAR -->
     <section id="vista-cargar" class="vista activa">
       <form id="form" autocomplete="off" novalidate>
-        <label class="monto-wrap">
-          <span class="sr">Monto</span>
-          <span class="signo">$</span>
-          <input id="monto" name="monto" type="text" inputmode="decimal" placeholder="0" enterkeyhint="done" required>
-        </label>
+        <div class="monto-wrap">
+          <span class="signo" aria-hidden="true">$</span>
+          <input id="monto" name="monto" type="text" inputmode="decimal" placeholder="0" enterkeyhint="done" autocomplete="off" aria-label="Monto" required>
+          <button id="monto-borrar" class="monto-x" type="button" aria-label="Borrar monto" hidden>×</button>
+        </div>
 
         <fieldset class="campo">
           <legend>Categoría</legend>
