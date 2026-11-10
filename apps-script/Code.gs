@@ -102,18 +102,20 @@ function validar_(it) {
   if (!isFinite(monto) || monto <= 0) throw Invalido_('Monto inválido');
   const categoria = String(it.categoria || '');
   if (CATEGORIAS.indexOf(categoria) < 0) throw Invalido_('Categoría inválida');
-  let descripcion = String(it.descripcion || '').trim().slice(0, 200);
-  // Evita que un texto se interprete como fórmula en el Sheet
-  if (/^[=+\-@]/.test(descripcion)) descripcion = "'" + descripcion;
+  const descripcion = comoTexto_(String(it.descripcion || '').trim().slice(0, 200));
   return { id: id, fecha: fecha, monto: Math.round(monto * 100) / 100, categoria: categoria, descripcion: descripcion };
 }
 
 function buscarFila_(sh, id) {
   const ultima = sh.getLastRow();
   if (ultima < 2) return 0;
-  const celda = sh.getRange(2, 1, ultima - 1, 1).createTextFinder(id).matchEntireCell(true).findNext();
-  return celda ? celda.getRow() : 0;
+  const ids = sh.getRange(2, 1, ultima - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === id) return i + 2;
+  return 0;
 }
+
+/** Texto que Sheets interpretaría como fórmula → se guarda como texto. */
+const comoTexto_ = v => (typeof v === 'string' && /^[=+\-@]/.test(v) ? "'" + v : v);
 
 /** Alta idempotente: si el ID ya existe (reintento), actualiza en lugar de duplicar. */
 function guardar_(it, esAlta) {
@@ -129,11 +131,25 @@ function guardar_(it, esAlta) {
   return it;
 }
 
+/**
+ * Borra sin eliminar filas: deleteRow() a veces tarda minutos y traba el script.
+ * Mueve la última fila al hueco y vacía la última (solo escrituras de valores).
+ */
 function borrar_(id) {
   if (!id) throw Invalido_('Falta el ID');
   const sh = hoja_();
   const fila = buscarFila_(sh, id);
-  if (fila) sh.deleteRow(fila);
+  if (!fila) return;
+  const ancho = ENCABEZADOS.length;
+  const ultima = sh.getLastRow();
+  if (fila < ultima) {
+    const rUltima = sh.getRange(ultima, 1, 1, ancho);
+    const valores = rUltima.getValues()[0].map(comoTexto_);
+    sh.getRange(fila, 1, 1, ancho).setValues([valores]);
+    rUltima.clearContent();
+  } else {
+    sh.getRange(fila, 1, 1, ancho).clearContent();
+  }
 }
 
 function listar_(mes) {
@@ -148,13 +164,12 @@ function listar_(mes) {
     if (!f[0]) continue;
     const fecha = f[1] instanceof Date ? Utilities.formatDate(f[1], tz, 'yyyy-MM-dd') : String(f[1]).slice(0, 10);
     if (fecha.slice(0, 7) !== mes) continue;
-    let descripcion = String(f[4] || '');
     items.push({
       id: String(f[0]),
       fecha: fecha,
       monto: Number(f[2]) || 0,
       categoria: String(f[3]),
-      descripcion: descripcion,
+      descripcion: String(f[4] || ''),
       creado: f[5] instanceof Date ? f[5].toISOString() : '',
     });
   }
