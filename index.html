@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Gastos</title>
+  <meta name="theme-color" content="#0f766e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Gastos">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icons/icon-180.png">
+  <link rel="icon" type="image/png" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="top">
+    <h1 id="titulo">Nuevo gasto</h1>
+    <div class="top-actions">
+      <button id="estado" class="estado" type="button" aria-live="polite">—</button>
+      <button id="btn-config" class="icon-btn" type="button" aria-label="Configuración">⚙︎</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- CARGAR / EDITAR -->
+    <section id="vista-cargar" class="vista activa">
+      <form id="form" autocomplete="off" novalidate>
+        <label class="monto-wrap">
+          <span class="sr">Monto</span>
+          <span class="signo">$</span>
+          <input id="monto" name="monto" type="text" inputmode="decimal" placeholder="0" enterkeyhint="done" required>
+        </label>
+
+        <fieldset class="campo">
+          <legend>Categoría</legend>
+          <div id="categorias" class="chips"></div>
+        </fieldset>
+
+        <div class="campo">
+          <label for="fecha">Fecha</label>
+          <div class="fecha-row">
+            <input id="fecha" name="fecha" type="date" required>
+            <button type="button" class="chip mini" data-dias="0">Hoy</button>
+            <button type="button" class="chip mini" data-dias="1">Ayer</button>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="descripcion">Descripción <span class="opcional">(opcional)</span></label>
+          <input id="descripcion" name="descripcion" type="text" maxlength="200" placeholder="Ej: almuerzo con amigos">
+        </div>
+
+        <p id="error-form" class="error" hidden></p>
+
+        <button id="btn-guardar" class="primario" type="submit">Guardar gasto</button>
+        <div id="acciones-edicion" class="acciones-edicion" hidden>
+          <button id="btn-borrar" class="peligro" type="button">Borrar</button>
+          <button id="btn-cancelar" class="secundario" type="button">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- RESUMEN -->
+    <section id="vista-resumen" class="vista">
+      <div class="mes-nav">
+        <button id="mes-ant" class="icon-btn" type="button" aria-label="Mes anterior">‹</button>
+        <h2 id="mes-label">—</h2>
+        <button id="mes-sig" class="icon-btn" type="button" aria-label="Mes siguiente">›</button>
+      </div>
+
+      <div class="tarjeta total">
+        <span class="etiqueta">Total del mes</span>
+        <strong id="total-mes">$ 0</strong>
+        <span id="cant-mes" class="sub"></span>
+      </div>
+
+      <div class="tarjeta">
+        <h3>Por categoría</h3>
+        <ul id="por-categoria" class="barras"></ul>
+      </div>
+
+      <div class="tarjeta">
+        <h3>Gastos</h3>
+        <div id="lista"></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs">
+    <button class="tab activa" data-vista="cargar" type="button"><span aria-hidden="true">＋</span>Cargar</button>
+    <button class="tab" data-vista="resumen" type="button"><span aria-hidden="true">▤</span>Resumen</button>
+  </nav>
+
+  <dialog id="dlg-config">
+    <form method="dialog" id="form-config">
+      <h2>Configuración</h2>
+      <p class="sub">Se guarda solo en este teléfono.</p>
+      <label for="cfg-url">URL de la Web App (termina en /exec)</label>
+      <input id="cfg-url" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="off" spellcheck="false">
+      <label for="cfg-token">Token</label>
+      <input id="cfg-token" type="password" autocapitalize="off" spellcheck="false">
+      <p id="cfg-msg" class="sub" aria-live="polite"></p>
+      <div class="acciones-edicion">
+        <button id="cfg-cancelar" class="secundario" type="button">Cancelar</button>
+        <button id="cfg-guardar" class="primario" type="button">Probar y guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
