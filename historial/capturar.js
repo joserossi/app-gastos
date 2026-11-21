@@ -67,16 +67,6 @@ function cacheEjemplo() {
     await p.click('#monto-borrar'); await p.evaluate(() => document.activeElement.blur());
     await p.click('.tab[data-vista="resumen"]'); await p.waitForTimeout(800);
     await foto('2-resumen');
-    await p.evaluate(() => {
-      const card = document.querySelector('#lista').closest('.tarjeta');
-      const alto = document.querySelector('header').getBoundingClientRect().height;
-      window.scrollTo(0, card.getBoundingClientRect().top + window.scrollY - alto - 12);
-    });
-    await foto('3-resumen-lista');
-
-    // Editar un gasto
-    await p.click('.item'); await p.waitForTimeout(400);
-    await foto('4-editar');
     await ctx.close();
   }
   await b.close();

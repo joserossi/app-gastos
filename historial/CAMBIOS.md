@@ -21,7 +21,7 @@ Primera versión en uso.
 - Uso sin conexión: los gastos quedan pendientes y se suben solos.
 - Ícono con el signo $ grande y semitransparente.
 
-| Cargar | Resumen | Lista | Editar |
-|---|---|---|---|
-| ![](v1/1-cargar-claro.png) | ![](v1/2-resumen-claro.png) | ![](v1/3-resumen-lista-claro.png) | ![](v1/4-editar-claro.png) |
-| ![](v1/1-cargar-oscuro.png) | ![](v1/2-resumen-oscuro.png) | ![](v1/3-resumen-lista-oscuro.png) | ![](v1/4-editar-oscuro.png) |
+| | Cargar | Resumen |
+|---|---|---|
+| Claro | ![](v1/1-cargar-claro.png) | ![](v1/2-resumen-claro.png) |
+| Oscuro | ![](v1/1-cargar-oscuro.png) | ![](v1/2-resumen-oscuro.png) |

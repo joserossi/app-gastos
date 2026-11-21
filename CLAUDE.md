@@ -97,7 +97,7 @@ Cada pase a producción de un cambio visible es una versión nueva (`v1`, `v2`, 
 2. Pasar los cambios a producción y publicar.
 3. Capturas de la versión nueva: servir la raíz con `python -m http.server 8765` y correr
    `NODE_PATH=<carpeta con playwright-core>/node_modules node historial/capturar.js http://localhost:8765/ historial/vN`.
-   Usa datos de ejemplo y bloquea las llamadas a Google. Revisar las imágenes.
+   Genera solo Cargar y Resumen, en modo claro y oscuro (4 imágenes, a pedido del dueño). Usa datos de ejemplo y bloquea las llamadas a Google. Revisar las imágenes.
 4. Agregar la sección `vN` arriba en `historial/CAMBIOS.md` (qué cambió, en lenguaje de usuario, con la tabla de capturas).
 5. Commit, `git tag -a vN -m "..."`, `git push --follow-tags` y `gh release create vN --notes "..."`.
 
