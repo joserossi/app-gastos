@@ -90,6 +90,14 @@ Errores: `{ok:false, error, invalido?:true, reintentar?:true}`.
 
 No hace falta volver a correr `setup`. Cambiar el nombre del proyecto de Apps Script no afecta nada.
 
+## Entorno de desarrollo (`dev/`)
+
+Copia de la app para probar cambios de diseño sin tocar producción ni el Sheet.
+- `dev/mock.js` se carga antes que `app.js`: define `window.GASTOS_DEV`, simula el Apps Script con el mismo contrato de la API, carga unos 30 gastos de ejemplo del mes actual y el anterior, y agrega una franja violeta con "Sin conexión" y "Reiniciar".
+- Con `GASTOS_DEV`, `app.js` guarda en claves `gastos-dev.*` (no mezcla datos con la app real) y no registra el service worker.
+- Se abre con doble clic en `dev/index.html` (file://), o en https://joserossi.github.io/app-gastos/dev/ desde el iPhone.
+- **Pasar a producción:** copiar `dev/app.js` y `dev/styles.css` a la raíz; en `index.html` copiar el de `dev/` sacando la línea de `mock.js`, cambiando `../` por `./` en manifest e íconos y volviendo el `<title>` a "Gastos". Subir `VERSION` en `sw.js`. Los estilos `.dev-barra` pueden quedar, porque sin `mock.js` no se usan.
+
 ## Cómo probar
 
 - **API con curl:** mandar el JSON desde un **archivo UTF-8** (`--data-binary @archivo.json`). Pasado como argumento en la terminal de Windows, las tildes se rompen y aparece "Categoría inválida" sin que sea un bug. Usar `--ssl-no-revoke` y `-L`.

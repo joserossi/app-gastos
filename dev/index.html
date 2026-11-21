@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Gastos (desarrollo)</title>
+  <meta name="theme-color" content="#0f766e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Gastos">
+  <link rel="manifest" href="../manifest.json">
+  <link rel="apple-touch-icon" href="../icons/icon-180.png?v=2">
+  <link rel="icon" type="image/png" href="../icons/icon-192.png?v=2">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./mock.js"></script><!-- SOLO DESARROLLO: quitar al pasar a producción -->
+</head>
+<body class="en-cargar">
+  <header class="top">
+    <h1 id="titulo">Nuevo gasto</h1>
+    <div class="top-actions">
+      <button id="estado" class="estado" type="button" aria-label="Estado de sincronización">
+        <span class="estado-punto" aria-hidden="true"></span><span class="estado-txt"></span>
+      </button>
+      <button id="btn-config" class="icon-btn" type="button" aria-label="Configuración" data-icono="ajustes"></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- CARGAR / EDITAR -->
+    <section id="vista-cargar" class="vista activa">
+      <form id="form" autocomplete="off" novalidate>
+        <div class="monto-wrap">
+          <span class="signo" aria-hidden="true">$</span>
+          <input id="monto" name="monto" type="text" inputmode="decimal" placeholder="0" enterkeyhint="done" autocomplete="off" aria-label="Monto" required>
+          <button id="monto-borrar" class="monto-x" type="button" aria-label="Borrar monto" hidden>×</button>
+        </div>
+
+        <fieldset class="campo">
+          <legend class="etiqueta">Categoría</legend>
+          <div id="categorias" class="cat-grid"></div>
+        </fieldset>
+
+        <div class="campo">
+          <span class="etiqueta" id="lbl-fecha">Fecha</span>
+          <div class="segmento" role="group" aria-labelledby="lbl-fecha">
+            <button type="button" class="seg" data-dias="0">Hoy</button>
+            <button type="button" class="seg" data-dias="1">Ayer</button>
+            <label class="seg seg-otro" id="seg-otro">
+              <span data-icono="calendario"></span><span id="fecha-otro-txt">Otro día</span>
+              <input id="fecha" name="fecha" type="date" required aria-label="Elegir otro día">
+            </label>
+          </div>
+          <p id="fecha-larga" class="fecha-larga"></p>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="descripcion">Descripción <span class="opcional">(opcional)</span></label>
+          <input id="descripcion" name="descripcion" type="text" maxlength="200" placeholder="Ej: almuerzo con amigos">
+        </div>
+
+        <p id="error-form" class="error" hidden></p>
+      </form>
+    </section>
+
+    <!-- RESUMEN -->
+    <section id="vista-resumen" class="vista">
+      <div class="mes-nav">
+        <button id="mes-ant" class="icon-btn" type="button" aria-label="Mes anterior" data-icono="izquierda"></button>
+        <h2 id="mes-label">—</h2>
+        <button id="mes-sig" class="icon-btn" type="button" aria-label="Mes siguiente" data-icono="derecha"></button>
+      </div>
+
+      <section class="tarjeta hero" aria-labelledby="total-etq">
+        <span id="total-etq" class="etiqueta">Total del mes</span>
+        <strong id="total-mes" class="total-num">$ 0</strong>
+        <p id="hero-detalle" class="hero-detalle"></p>
+        <p id="comparacion" class="comparacion" hidden></p>
+      </section>
+
+      <section class="tarjeta">
+        <h3 class="etiqueta">Por categoría</h3>
+        <ul id="por-categoria" class="barras"></ul>
+      </section>
+
+      <section class="tarjeta" id="card-gastos">
+        <div class="card-head">
+          <h3 class="etiqueta">Gastos</h3>
+          <button id="filtro-chip" class="filtro-chip" type="button" aria-label="Quitar filtro" hidden>
+            <span id="filtro-texto"></span><span class="x" aria-hidden="true">×</span>
+          </button>
+        </div>
+        <div id="lista"></div>
+      </section>
+    </section>
+  </main>
+
+  <!-- Acción principal fija (solo en Cargar) -->
+  <div class="barra-accion" id="barra-accion">
+    <button id="btn-borrar" class="icon-btn peligro" type="button" aria-label="Borrar gasto" data-icono="papelera" hidden></button>
+    <button id="btn-cancelar" class="secundario" type="button" hidden>Cancelar</button>
+    <button id="btn-guardar" class="primario" type="submit" form="form">Guardar gasto</button>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab activa" data-vista="cargar" type="button"><span data-icono="mas"></span>Cargar</button>
+    <button class="tab" data-vista="resumen" type="button"><span data-icono="resumen"></span>Resumen</button>
+  </nav>
+
+  <dialog id="dlg-config">
+    <form id="form-config" autocomplete="off" novalidate>
+      <h2>Configuración</h2>
+      <p class="sub">Se guarda solo en este teléfono.</p>
+      <p id="cfg-msg" class="cfg-msg" aria-live="polite" hidden></p>
+      <label class="etiqueta" for="cfg-url">URL de la Web App (termina en /exec)</label>
+      <input id="cfg-url" type="text" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false">
+      <label class="etiqueta" for="cfg-token">Token</label>
+      <input id="cfg-token" type="text" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder="40 letras y números">
+      <div class="acciones">
+        <button id="cfg-cancelar" class="secundario" type="button">Cancelar</button>
+        <button id="cfg-guardar" class="primario" type="button">Probar y guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
