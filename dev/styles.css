@@ -221,7 +221,7 @@ body.en-cargar .barra-accion { display: flex; }
 .cat-btn .monto { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cat-btn .pct { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 6px; }
 .barra { grid-column: 2 / -1; height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
-.barra > i { display: block; height: 100%; background: var(--c); border-radius: 3px; }
+.barra > i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
 .cat-btn.activa { background: var(--accent-soft); border-color: var(--accent); }
 .barras.filtrando .cat-btn:not(.activa) { opacity: .45; }
 
