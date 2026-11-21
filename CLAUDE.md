@@ -1,6 +1,6 @@
 # Gastos: contexto del proyecto
 
-PWA personal para registrar gastos diarios desde un iPhone 13. Los datos se guardan en un Google Sheet del Drive del dueño. Uso individual, en pesos argentinos (ARS). La interfaz y el código están en español rioplatense.
+PWA personal para registrar gastos diarios y llevar listas (supermercado, pendientes) desde un iPhone 13. Los datos se guardan en un Google Sheet del Drive del dueño. Uso individual, en pesos argentinos (ARS). La interfaz y el código están en español rioplatense.
 
 > El repo es **público**. Nunca commitear la URL `/exec` de la Web App ni el token.
 
@@ -13,7 +13,7 @@ iPhone (PWA instalada desde Safari)
   ▼  POST text/plain con JSON {token, action, ...}
 Google Apps Script (Web App, "Ejecutar como: Yo", acceso "Cualquier usuario")
   ▼
-Google Sheet "Gastos", pestaña "Gastos"
+Google Sheet "Gastos", pestañas "Gastos", "Listas" e "Ítems"
 ```
 
 | Recurso | Dónde |
@@ -28,8 +28,8 @@ Google Sheet "Gastos", pestaña "Gastos"
 
 | Archivo | Qué hace |
 |---|---|
-| `index.html` | Dos vistas (Cargar, Resumen), barra de pestañas, diálogo de configuración |
-| `app.js` | Toda la lógica: formulario, formato del monto, cola offline, sincronización, resumen |
+| `index.html` | Tres vistas (Cargar, Resumen, Listas), barra de pestañas, diálogos de configuración y de opciones de lista |
+| `app.js` | Toda la lógica: formulario, formato del monto, cola offline, sincronización, resumen, listas |
 | `styles.css` | Tokens de color con modo oscuro (incluye `--cat-1`…`--cat-7`, una por categoría, validadas con la skill dataviz), márgenes seguros del iPhone, inputs de 16px o más (evitan el zoom de iOS) |
 | `dev/` | Entorno de desarrollo con datos de ejemplo (ver más abajo) |
 | `historial/` | Capturas y registro de cada versión publicada |
@@ -49,6 +49,12 @@ Columnas del Sheet: `ID | Fecha | Monto | Categoría | Descripción | Creado | M
 - Zona horaria del Sheet: `America/Argentina/Buenos_Aires`, locale `es_AR`.
 - Las filas **no** siguen un orden. Al borrar, la última fila pasa al lugar de la borrada.
 
+Listas (pestañas creadas solas por el script al primer uso):
+- **Listas:** `ID | Nombre | Orden | Creada`. `Orden` = momento de creación (ms); las listas se muestran por orden.
+- **Ítems:** `ID | Lista | Texto | Hecho | Orden | Creado | Modificado`. `Lista` = ID de la lista; `Hecho` = TRUE/FALSE. En la app: pendientes arriba, tachados abajo, cada grupo por `Orden` (creación).
+- Borrar en estas pestañas reescribe el bloque de filas sin las borradas (`borrarDonde_`), así que el orden de las filas se conserva.
+- En el teléfono: caché `gastos.listas` = `{listas, items}`; las operaciones pendientes se aplican encima con `aplicarOpListas`.
+
 ## API (`doPost`)
 
 Pedido: `{"token": "...", "action": "...", ...}` enviado como `Content-Type: text/plain`.
@@ -59,6 +65,14 @@ Pedido: `{"token": "...", "action": "...", ...}` enviado como `Content-Type: tex
 | `list` | `mes: "yyyy-mm"` | `{ok:true, items:[{id,fecha,monto,categoria,descripcion,creado}]}` | no |
 | `add` / `update` | `item: {id,fecha,monto,categoria,descripcion}` | `{ok:true, item}` | sí |
 | `delete` | `item: {id}` | `{ok:true}` | sí |
+| `listas` | | `{ok:true, listas:[{id,nombre,orden}], items:[{id,lista,texto,hecho,orden}]}` | no |
+| `lista.add` / `lista.update` | `item: {id,nombre,orden}` | `{ok:true}` | sí |
+| `lista.delete` | `item: {id}` (borra también sus ítems) | `{ok:true}` | sí |
+| `lista.limpiar` / `lista.desmarcar` | `item: {id}` (borra los tachados / destacha todo) | `{ok:true}` | sí |
+| `item.add` / `item.update` | `item: {id,lista,texto,hecho,orden}` | `{ok:true}` | sí |
+| `item.delete` | `item: {id}` | `{ok:true}` | sí |
+
+En la cola del teléfono cada operación lleva `tipo` (`gasto`, `lista` o `item`; las viejas sin `tipo` son gastos) y la acción de la API se arma como `tipo.acción`, salvo para gastos.
 
 Errores: `{ok:false, error, invalido?:true, reintentar?:true}`.
 - `"Token inválido"`: la app pide revisar la configuración.
@@ -126,5 +140,5 @@ Copia de la app para probar cambios de diseño sin tocar producción ni el Sheet
 - 10/11/2026: primera versión en uso. Carga, resumen mensual por categoría, edición, borrado, uso sin conexión, separador de miles y botón × en el monto.
 - 20/11/2026: ícono con el $ grande y semitransparente (iOS no admite transparencia real en el ícono: la rellena con negro). Filtro por categoría en el Resumen: tocar una categoría filtra la card Gastos y la × del encabezado lo quita.
 - 20/11/2026: **v2 en producción**, rediseño hecho y aprobado en `dev/` (detalle en `historial/CAMBIOS.md`). Producción y `dev/` quedaron iguales salvo `mock.js`, las rutas `../` y el título.
-- 20/11/2026: **sección Listas en `dev/`, en revisión** (todavía no en producción). Decisiones del dueño: ítems solo de texto; una sola lista continua con pendientes arriba y tachados abajo (sin sección "Comprados"); no se comparte; arranca sin listas. Falta: aprobación del diseño, `Code.gs` con pestañas "Listas" e "Ítems" (el dueño lo implementa) y publicar como v3. Contrato de la API de listas: ver `servidorListas` en `dev/mock.js`.
+- 20/11/2026: **v3 en producción, con la sección Listas.** Decisiones del dueño: ítems solo de texto; una sola lista continua con pendientes arriba y tachados abajo (sin sección "Comprados"); no se comparte; arranca sin listas. `Code.gs` con listas implementado por el dueño y probado contra el Sheet.
 - Para ver el ícono nuevo hay que eliminar la app y volver a agregarla, porque iOS no actualiza el ícono. Eso borra la configuración y los pendientes del teléfono. Al publicarse la v2, el dueño iba a reinstalar.

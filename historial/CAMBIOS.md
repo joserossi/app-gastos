@@ -8,7 +8,26 @@ Para recuperar el código de una versión: `git checkout v1` (y `git checkout ma
 
 ---
 
-## v2 · desde el 20 de noviembre de 2026
+## v3 · desde el 20 de noviembre de 2026
+
+Sección Listas, para el supermercado y otros pendientes.
+
+- Tercera pestaña, Listas: cada lista muestra cuántos pendientes le quedan; se crean desde la misma pantalla.
+- Dentro de una lista se cargan ítems uno tras otro sin cerrar el teclado.
+- Al tachar un ítem baja al final; al destacharlo vuelve a su lugar.
+- Tocando el texto se edita o se borra.
+- Menú de cada lista: renombrar, desmarcar todo, borrar tachados y borrar la lista.
+- Funciona sin conexión: los cambios se suben solos cuando vuelve la señal.
+- Las listas se guardan en las pestañas "Listas" e "Ítems" del mismo Google Sheet.
+
+| | Cargar | Resumen |
+|---|---|---|
+| Claro | ![](v3/1-cargar-claro.png) | ![](v3/2-resumen-claro.png) |
+| Oscuro | ![](v3/1-cargar-oscuro.png) | ![](v3/2-resumen-oscuro.png) |
+
+---
+
+## v2 · 20 de noviembre de 2026
 
 Rediseño de la interfaz.
 
