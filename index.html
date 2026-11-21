@@ -92,6 +92,31 @@
         <div id="lista"></div>
       </section>
     </section>
+
+    <!-- LISTAS -->
+    <section id="vista-listas" class="vista">
+      <div id="listas-indice" class="listas-indice">
+        <p id="listas-aviso" class="aviso" hidden></p>
+        <ul id="listas-ul" class="listas-ul"></ul>
+        <form id="form-nueva-lista" class="fila-agregar" autocomplete="off">
+          <input id="nueva-lista" type="text" maxlength="60" placeholder="Nueva lista, ej: Supermercado" aria-label="Nombre de la nueva lista" enterkeyhint="done">
+          <button type="submit" class="icon-btn agregar" aria-label="Crear lista" data-icono="mas"></button>
+        </form>
+      </div>
+
+      <div id="lista-detalle" class="lista-detalle" hidden>
+        <div class="detalle-nav">
+          <button id="lista-volver" class="volver" type="button"><span data-icono="izquierda"></span>Listas</button>
+          <button id="lista-menu" class="icon-btn" type="button" aria-label="Opciones de la lista" data-icono="opciones"></button>
+        </div>
+        <form id="form-item" class="fila-agregar" autocomplete="off">
+          <input id="nuevo-item" type="text" maxlength="200" placeholder="Agregar ítem" aria-label="Nuevo ítem" enterkeyhint="send">
+          <button type="submit" class="icon-btn agregar" aria-label="Agregar ítem" data-icono="mas"></button>
+        </form>
+        <ul id="items-ul" class="items-ul"></ul>
+        <p id="items-resumen" class="items-resumen"></p>
+      </div>
+    </section>
   </main>
 
   <!-- Acción principal fija (solo en Cargar) -->
@@ -104,7 +129,25 @@
   <nav class="tabs">
     <button class="tab activa" data-vista="cargar" type="button"><span data-icono="mas"></span>Cargar</button>
     <button class="tab" data-vista="resumen" type="button"><span data-icono="resumen"></span>Resumen</button>
+    <button class="tab" data-vista="listas" type="button"><span data-icono="listas"></span>Listas</button>
   </nav>
+
+  <dialog id="dlg-lista">
+    <form id="form-renombrar" autocomplete="off" novalidate>
+      <h2>Opciones de la lista</h2>
+      <label class="etiqueta" for="lista-nuevo-nombre">Nombre</label>
+      <div class="fila-agregar">
+        <input id="lista-nuevo-nombre" type="text" maxlength="60">
+        <button type="submit" class="secundario">Guardar</button>
+      </div>
+      <div class="menu-acciones">
+        <button id="op-desmarcar" type="button" class="secundario">Desmarcar todo</button>
+        <button id="op-limpiar" type="button" class="secundario">Borrar tachados</button>
+        <button id="op-borrar-lista" type="button" class="secundario texto-peligro">Borrar la lista</button>
+        <button id="op-cerrar" type="button" class="primario" autofocus>Listo</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="dlg-config">
     <form id="form-config" autocomplete="off" novalidate>
