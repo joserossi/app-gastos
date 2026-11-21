@@ -81,8 +81,13 @@
         <ul id="por-categoria" class="barras"></ul>
       </div>
 
-      <div class="tarjeta">
-        <h3>Gastos</h3>
+      <div class="tarjeta" id="card-gastos">
+        <div class="card-head">
+          <h3>Gastos</h3>
+          <button id="filtro-chip" class="filtro-chip" type="button" aria-label="Quitar filtro" hidden>
+            <span id="filtro-texto"></span><span class="x" aria-hidden="true">×</span>
+          </button>
+        </div>
         <div id="lista"></div>
       </div>
     </section>

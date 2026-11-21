@@ -99,4 +99,5 @@ No hace falta volver a correr `setup`. Cambiar el nombre del proyecto de Apps Sc
 ## Estado
 
 - 10/11/2026: primera versión en uso. Carga, resumen mensual por categoría, edición, borrado, uso sin conexión, separador de miles y botón × en el monto.
-- El dueño la va a usar unos días antes de decidir mejoras.
+- 20/11/2026: ícono con el $ grande y semitransparente (iOS no admite transparencia real en el ícono: la rellena con negro). Filtro por categoría en el Resumen: tocar una categoría filtra la card Gastos y la × del encabezado lo quita.
+- Para ver el ícono nuevo hay que eliminar la app y volver a agregarla, porque iOS no actualiza el ícono. Eso borra la configuración y los pendientes del teléfono. El dueño la va a reinstalar cuando termine la tanda de cambios.

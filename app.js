@@ -116,6 +116,7 @@ function borrarMonto() {
 let mesActual = mesDe(hoyISO());
 let editando = null;        // gasto que se está editando (o null)
 let categoriaSel = null;
+let filtroCat = null;        // categoría elegida en el Resumen (o null = todas)
 let sincronizando = false;
 let enVuelo = null;          // qid de la operación que se está enviando
 let errorSync = '';
@@ -273,22 +274,38 @@ function renderResumen() {
   const max = filas.length ? filas[0][1] : 0;
   const ul = $('#por-categoria');
   ul.replaceChildren();
+  ul.classList.toggle('filtrando', !!filtroCat);
   if (!filas.length) ul.append(el('li', { className: 'vacio' }, 'Sin gastos este mes'));
   for (const [cat, monto] of filas) {
     const pct = total ? Math.round((monto / total) * 100) : 0;
     const barra = el('div', { className: 'barra' }, el('i', { style: `width:${max ? (monto / max) * 100 : 0}%` }));
-    ul.append(el('li', {},
+    const btn = el('button', { type: 'button', className: 'cat-btn' + (filtroCat === cat ? ' activa' : '') },
       el('span', {}, `${EMO[cat] || '•'} ${cat}`),
       el('span', { className: 'monto' }, fmt.format(monto), el('span', { className: 'pct' }, `${pct}%`)),
-      barra));
+      barra);
+    btn.setAttribute('aria-pressed', String(filtroCat === cat));
+    btn.addEventListener('click', () => filtrarCategoria(cat));
+    ul.append(el('li', {}, btn));
+  }
+
+  // Filtro por categoría
+  const chip = $('#filtro-chip');
+  chip.hidden = !filtroCat;
+  const visibles = filtroCat ? items.filter(i => i.categoria === filtroCat) : items;
+  if (filtroCat) {
+    const sub = visibles.reduce((s, i) => s + i.monto, 0);
+    $('#filtro-texto').textContent = `${EMO[filtroCat] || ''} ${filtroCat} · ${fmt.format(sub)}`;
   }
 
   // Lista agrupada por día
   const lista = $('#lista');
   lista.replaceChildren();
-  if (!items.length) { lista.append(el('p', { className: 'vacio' }, 'Todavía no hay gastos.')); return; }
+  if (!visibles.length) {
+    lista.append(el('p', { className: 'vacio' }, filtroCat ? `Sin gastos de ${filtroCat} este mes.` : 'Todavía no hay gastos.'));
+    return;
+  }
   const dias = new Map();
-  for (const i of items) { if (!dias.has(i.fecha)) dias.set(i.fecha, []); dias.get(i.fecha).push(i); }
+  for (const i of visibles) { if (!dias.has(i.fecha)) dias.set(i.fecha, []); dias.get(i.fecha).push(i); }
   for (const [fecha, gs] of dias) {
     const totDia = gs.reduce((s, i) => s + i.monto, 0);
     const grupo = el('div', { className: 'dia' },
@@ -306,6 +323,18 @@ function renderResumen() {
     }
     lista.append(grupo);
   }
+}
+
+/** Tocar una categoría filtra la lista; tocar la misma de nuevo quita el filtro. */
+function filtrarCategoria(cat) {
+  filtroCat = filtroCat === cat ? null : cat;
+  renderResumen();
+  if (filtroCat) $('#card-gastos').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function quitarFiltro() {
+  filtroCat = null;
+  renderResumen();
 }
 
 /** Crea elementos sin innerHTML (evita inyección con la descripción). */
@@ -491,6 +520,7 @@ function init() {
   $('#btn-borrar').addEventListener('click', borrar);
   $('#btn-cancelar').addEventListener('click', () => { limpiarForm(); mostrarVista('resumen'); });
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => mostrarVista(t.dataset.vista)));
+  $('#filtro-chip').addEventListener('click', quitarFiltro);
   $('#mes-ant').addEventListener('click', () => cambiarMes(-1));
   $('#mes-sig').addEventListener('click', () => cambiarMes(1));
   $('#btn-config').addEventListener('click', abrirConfig);
