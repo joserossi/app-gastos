@@ -27,6 +27,9 @@ const ICONOS = {
   mas: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
   resumen: '<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',
   izquierda: '<path d="m15 18-6-6 6-6"/>',
+  listas: '<path d="M10 6h10M10 12h10M10 18h10"/><path d="m3.5 6 1.3 1.3L7.3 4.8M3.5 12l1.3 1.3 2.5-2.5M3.5 18l1.3 1.3 2.5-2.5"/>',
+  check: '<path d="m5.5 12.5 4 4L18.5 7.5"/>',
+  opciones: '<circle cx="5" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="19" cy="12" r="1.4" fill="currentColor"/>',
   derecha: '<path d="m9 18 6-6-6-6"/>',
   papelera: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/>',
 };
@@ -48,7 +51,7 @@ const chipCat = cat => el('span', { className: `cat-chip cat-${CLAVE[cat] || 'oc
 
 // En desarrollo (dev/mock.js) los datos van a otras claves para no mezclarse con los reales.
 const PREF = window.GASTOS_DEV ? 'gastos-dev' : 'gastos';
-const K = { config: PREF + '.config', cola: PREF + '.cola', cache: PREF + '.cache' };
+const K = { config: PREF + '.config', cola: PREF + '.cola', cache: PREF + '.cache', listas: PREF + '.listas' };
 const fmtEntero = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const fmtDecimal = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = { format: n => (Number.isInteger(Math.round(n * 100) / 100) ? fmtEntero : fmtDecimal).format(n) };
@@ -205,18 +208,24 @@ async function api(action, payload = {}, cfg = config()) {
 }
 
 // ---------- Cola de operaciones pendientes ----------
-function encolar(action, item) {
+// Cada operación tiene un tipo: 'gasto' (las viejas no lo tienen), 'lista' o 'item'.
+const tipoDe = op => op.tipo || 'gasto';
+const accionApi = op => (tipoDe(op) === 'gasto' ? op.action : `${op.tipo}.${op.action}`);
+
+function encolar(action, item, tipo = 'gasto') {
   let cola = store.get(K.cola, []);
-  const libre = o => o.item.id === item.id && o.qid !== enVuelo;
+  const libre = o => tipoDe(o) === tipo && o.item.id === item.id && o.qid !== enVuelo;
   const iAdd = cola.findIndex(o => libre(o) && o.action === 'add');
 
-  if (action === 'update' && iAdd >= 0) {
+  if (!['add', 'update', 'delete'].includes(action)) {
+    cola.push({ qid: nuevoId(), action, tipo, item });       // limpiar / desmarcar una lista
+  } else if (action === 'update' && iAdd >= 0) {
     cola[iAdd].item = item;                                   // todavía no subió: modificar el alta
   } else if (action === 'delete' && iAdd >= 0) {
     cola = cola.filter(o => !libre(o));                       // nunca llegó al Sheet: descartar
   } else {
     if (action !== 'add') cola = cola.filter(o => !(libre(o) && o.action === 'update'));
-    cola.push({ qid: nuevoId(), action, item });
+    cola.push({ qid: nuevoId(), action, tipo, item });
   }
   store.set(K.cola, cola);
 }
@@ -243,11 +252,12 @@ async function sincronizar() {
       const op = cola[0];
       enVuelo = op.qid;
       try {
-        await api(op.action, { item: op.item });
-        aplicarACache(op.action, op.item);
+        await api(accionApi(op), { item: op.item });
+        if (tipoDe(op) === 'gasto') aplicarACache(op.action, op.item);
+        else store.set(K.listas, aplicarOpListas(store.get(K.listas, { listas: [], items: [] }), op));
       } catch (e) {
         if (!(e instanceof ErrorServidor)) throw e;
-        toast('No se pudo guardar un gasto: ' + e.message);  // dato inválido: no bloquear la cola
+        toast('No se pudo guardar un cambio: ' + e.message);  // dato inválido: no bloquear la cola
       }
       enVuelo = null;
       cola = store.get(K.cola, []).filter(o => o.qid !== op.qid);
@@ -255,6 +265,7 @@ async function sincronizar() {
       render();
     }
     await cargarMes(mesActual);
+    await cargarListas();
   } catch (e) {
     errorSync = e.message || 'Error';
   } finally {
@@ -277,7 +288,7 @@ async function cargarMes(mes) {
 /** Gastos del mes = caché del servidor + operaciones pendientes aplicadas encima. */
 function gastosDelMes(mes) {
   let items = (store.get(K.cache, {})[mes] || []).slice();
-  for (const op of store.get(K.cola, [])) {
+  for (const op of store.get(K.cola, []).filter(o => tipoDe(o) === 'gasto')) {
     items = items.filter(i => i.id !== op.item.id);
     if (op.action !== 'delete' && mesDe(op.item.fecha) === mes) items.push({ ...op.item, pendiente: true });
   }
@@ -288,6 +299,8 @@ function gastosDelMes(mes) {
 function render() {
   renderEstado();
   if ($('#vista-resumen').classList.contains('activa')) renderResumen();
+  // Mientras se edita un ítem no se redibuja: una sincronización en segundo plano cerraría la edición
+  if ($('#vista-listas').classList.contains('activa') && !itemEditando) renderListas();
 }
 
 /** Punto de estado: verde al día, ámbar con pendientes, rojo si falta configurar. Al tocarlo explica el detalle. */
@@ -295,7 +308,7 @@ let estadoTexto = '';
 function renderEstado() {
   const b = $('#estado');
   const pend = store.get(K.cola, []).length;
-  const pendTxt = pend ? `${pend} gasto${pend > 1 ? 's' : ''} sin subir` : '';
+  const pendTxt = pend ? `${pend} cambio${pend > 1 ? 's' : ''} sin subir` : '';
   let estado, corto = '';
   if (!config()) { estado = 'err'; corto = 'Configurar'; estadoTexto = 'Falta configurar la conexión'; }
   else if (sincronizando) { estado = 'sync'; estadoTexto = 'Sincronizando…'; }
@@ -520,6 +533,214 @@ function borrar() {
   sincronizar();
 }
 
+// ---------- Listas ----------
+let listaAbierta = null;          // id de la lista que se está viendo (o null = índice)
+let itemEditando = null;          // id del ítem en edición (frena los redibujos automáticos)
+let listasNoDisponibles = false;  // el script de Google todavía no tiene las listas
+
+async function cargarListas() {
+  try {
+    const { listas, items } = await api('listas');
+    store.set(K.listas, { listas, items });
+    listasNoDisponibles = false;
+  } catch (e) {
+    if (e instanceof ErrorServidor) { listasNoDisponibles = true; return; }  // script viejo: no frenar la sincronización
+    throw e;
+  }
+}
+
+/** Aplica una operación de lista o ítem sobre {listas, items}. Se usa para la caché y para la vista. */
+function aplicarOpListas(d, op) {
+  const it = op.item;
+  let { listas, items } = d;
+  if (op.tipo === 'lista') {
+    if (op.action === 'delete') { listas = listas.filter(l => l.id !== it.id); items = items.filter(i => i.lista !== it.id); }
+    else if (op.action === 'limpiar') items = items.filter(i => !(i.lista === it.id && i.hecho));
+    else if (op.action === 'desmarcar') items = items.map(i => (i.lista === it.id ? { ...i, hecho: false } : i));
+    else listas = listas.filter(l => l.id !== it.id).concat({ id: it.id, nombre: it.nombre, orden: it.orden });
+  } else if (op.tipo === 'item') {
+    items = items.filter(i => i.id !== it.id);
+    if (op.action !== 'delete') items = items.concat({ id: it.id, lista: it.lista, texto: it.texto, hecho: !!it.hecho, orden: it.orden });
+  }
+  return { listas, items };
+}
+
+/** Listas = caché del servidor + cambios pendientes aplicados encima. */
+function datosListas() {
+  const base = store.get(K.listas, { listas: [], items: [] });
+  const ops = store.get(K.cola, []).filter(o => o.tipo === 'lista' || o.tipo === 'item');
+  const d = ops.reduce(aplicarOpListas, base);
+  d.listas.sort((a, b) => a.orden - b.orden);
+  return d;
+}
+
+const itemsDe = (d, id) => d.items.filter(i => i.lista === id)
+  .sort((a, b) => (a.hecho - b.hecho) || (a.orden - b.orden));   // pendientes arriba, tachados abajo
+
+function cambiarListas(action, item, tipo) {
+  encolar(action, item, tipo);
+  renderListas();
+  sincronizar();
+}
+
+function renderListas() {
+  const d = datosListas();
+  if (listaAbierta && !d.listas.some(l => l.id === listaAbierta)) listaAbierta = null;
+  $('#listas-indice').hidden = !!listaAbierta;
+  $('#lista-detalle').hidden = !listaAbierta;
+  const aviso = $('#listas-aviso');
+  aviso.hidden = !listasNoDisponibles;
+  aviso.textContent = 'Para guardar las listas en Google Sheets falta actualizar el script de Google. Mientras tanto quedan guardadas en este teléfono.';
+
+  if (!listaAbierta) {
+    $('#titulo').textContent = 'Listas';
+    const ul = $('#listas-ul');
+    ul.replaceChildren();
+    if (!d.listas.length) ul.append(el('li', { className: 'vacio' }, 'Todavía no tenés listas. Creá la primera acá abajo.'));
+    for (const l of d.listas) {
+      const its = d.items.filter(i => i.lista === l.id);
+      const pend = its.filter(i => !i.hecho).length;
+      const detalle = !its.length ? 'Vacía' : pend ? `${pend} pendiente${pend > 1 ? 's' : ''}` : 'Todo tachado';
+      const b = el('button', { type: 'button', className: 'lista-card' + (its.length && !pend ? ' completa' : '') },
+        el('span', { className: 'info' }, el('span', { className: 'nombre' }, l.nombre), el('span', { className: 'detalle' }, detalle)),
+        svg('derecha'));
+      b.addEventListener('click', () => abrirLista(l.id));
+      ul.append(el('li', {}, b));
+    }
+    return;
+  }
+
+  const lista = d.listas.find(l => l.id === listaAbierta);
+  $('#titulo').textContent = lista.nombre;
+  const its = itemsDe(d, lista.id);
+  const ul = $('#items-ul');
+  ul.replaceChildren();
+  if (!its.length) ul.append(el('li', { className: 'vacio' }, 'Lista vacía. Agregá el primer ítem arriba.'));
+  for (const it of its) ul.append(filaItem(it));
+  const hechos = its.filter(i => i.hecho).length;
+  $('#items-resumen').textContent = its.length ? `${its.length - hechos} pendiente${its.length - hechos === 1 ? '' : 's'} · ${hechos} tachado${hechos === 1 ? '' : 's'}` : '';
+}
+
+const itemLimpio = it => ({ id: it.id, lista: it.lista, texto: it.texto, hecho: !!it.hecho, orden: it.orden });
+
+function filaItem(it) {
+  const li = el('li', { className: 'item-fila' + (it.hecho ? ' hecho' : '') });
+  const check = el('button', { type: 'button', className: 'check' }, svg('check'));
+  check.setAttribute('aria-pressed', String(it.hecho));
+  check.setAttribute('aria-label', (it.hecho ? 'Destachar ' : 'Tachar ') + it.texto);
+  check.addEventListener('click', () => cambiarListas('update', { ...itemLimpio(it), hecho: !it.hecho }, 'item'));
+  const texto = el('button', { type: 'button', className: 'texto' }, it.texto);
+  texto.addEventListener('click', () => editarItem(li, it));
+  li.append(check, texto);
+  return li;
+}
+
+/** Edición en el lugar: Enter o salir del campo guarda; vacío borra; la papelera borra. */
+function editarItem(li, it) {
+  let terminado = false;
+  itemEditando = it.id;
+  const cerrar = () => { terminado = true; itemEditando = null; };
+  const inp = el('input', { type: 'text', className: 'item-edit', value: it.texto, maxLength: 200 });
+  inp.setAttribute('enterkeyhint', 'done');
+  inp.setAttribute('aria-label', 'Editar ítem');
+  const del = el('button', { type: 'button', className: 'icon-btn peligro item-borrar' }, svg('papelera'));
+  del.setAttribute('aria-label', 'Borrar ítem');
+  del.addEventListener('pointerdown', e => e.preventDefault());   // que no se dispare el blur antes
+  del.addEventListener('click', () => { cerrar(); cambiarListas('delete', itemLimpio(it), 'item'); });
+  const fin = () => {
+    if (terminado) return;
+    cerrar();
+    const t = inp.value.trim();
+    if (!t) cambiarListas('delete', itemLimpio(it), 'item');
+    else if (t !== it.texto) cambiarListas('update', { ...itemLimpio(it), texto: t }, 'item');
+    else renderListas();
+  };
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { cerrar(); renderListas(); }
+  });
+  inp.addEventListener('blur', fin);
+  li.querySelector('.texto').replaceWith(inp);
+  li.append(del);
+  li.classList.add('editando');
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+}
+
+function abrirLista(id) {
+  listaAbierta = id;
+  renderListas();
+  window.scrollTo(0, 0);
+}
+
+function crearLista(ev) {
+  ev.preventDefault();
+  const nombre = $('#nueva-lista').value.trim().slice(0, 60);
+  if (!nombre) return $('#nueva-lista').focus();
+  const lista = { id: nuevoId(), nombre, orden: Date.now() };
+  $('#nueva-lista').value = '';
+  encolar('add', lista, 'lista');
+  abrirLista(lista.id);
+  $('#nuevo-item').focus();   // en el mismo toque, así iOS deja el teclado abierto
+  sincronizar();
+}
+
+function agregarItem(ev) {
+  ev.preventDefault();
+  const inp = $('#nuevo-item');
+  const texto = inp.value.trim().slice(0, 200);
+  if (!texto || !listaAbierta) return;
+  inp.value = '';
+  inp.focus();   // el teclado queda abierto para cargar el siguiente
+  cambiarListas('add', { id: nuevoId(), lista: listaAbierta, texto, hecho: false, orden: Date.now() }, 'item');
+}
+
+function abrirMenuLista() {
+  const d = datosListas();
+  const lista = d.listas.find(l => l.id === listaAbierta);
+  if (!lista) return;
+  const its = d.items.filter(i => i.lista === lista.id);
+  const hechos = its.filter(i => i.hecho).length;
+  $('#lista-nuevo-nombre').value = lista.nombre;
+  $('#op-limpiar').textContent = hechos ? `Borrar tachados (${hechos})` : 'Borrar tachados';
+  $('#op-limpiar').disabled = !hechos;
+  $('#op-desmarcar').disabled = !hechos;
+  $('#dlg-lista').showModal();
+}
+
+function renombrarLista(ev) {
+  ev.preventDefault();
+  const lista = datosListas().listas.find(l => l.id === listaAbierta);
+  const nombre = $('#lista-nuevo-nombre').value.trim().slice(0, 60);
+  if (lista && nombre && nombre !== lista.nombre) {
+    cambiarListas('update', { id: lista.id, nombre, orden: lista.orden }, 'lista');
+    toast('Lista renombrada');
+  }
+  $('#dlg-lista').close();
+}
+
+function accionLista(action) {
+  const lista = datosListas().listas.find(l => l.id === listaAbierta);
+  if (!lista) return;
+  if (action === 'delete') {
+    if (!confirm(`¿Borrar la lista "${lista.nombre}" con todos sus ítems?`)) return;
+    // Lo que todavía no subió de esa lista ya no hace falta subirlo
+    const cola = store.get(K.cola, []);
+    const listaNueva = cola.some(o => o.tipo === 'lista' && o.action === 'add' && o.item.id === lista.id && o.qid !== enVuelo);
+    store.set(K.cola, cola.filter(o => o.qid === enVuelo || !(
+      (o.tipo === 'item' && o.item.lista === lista.id) || (o.tipo === 'lista' && o.item.id === lista.id))));
+    if (!listaNueva) encolar('delete', { id: lista.id }, 'lista');
+    listaAbierta = null;
+    toast('Lista borrada');
+  } else {
+    encolar(action, { id: lista.id }, 'lista');
+    toast(action === 'limpiar' ? 'Tachados borrados' : 'Todo desmarcado');
+  }
+  $('#dlg-lista').close();
+  renderListas();
+  sincronizar();
+}
+
 // ---------- Navegación ----------
 function mostrarVista(nombre, mantenerEdicion) {
   if (nombre !== 'cargar' && editando && !mantenerEdicion) limpiarForm();
@@ -527,6 +748,10 @@ function mostrarVista(nombre, mantenerEdicion) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('activa', t.dataset.vista === nombre));
   document.body.classList.toggle('en-cargar', nombre === 'cargar');
   if (nombre === 'resumen') { $('#titulo').textContent = 'Resumen'; renderResumen(); }
+  else if (nombre === 'listas') {
+    renderListas();
+    if (config() && !sincronizando) cargarListas().then(render).catch(() => {});
+  }
   else $('#titulo').textContent = editando ? 'Editar gasto' : 'Nuevo gasto';
   window.scrollTo(0, 0);
 }
@@ -619,6 +844,15 @@ function init() {
   $('#btn-cancelar').addEventListener('click', () => { limpiarForm(); mostrarVista('resumen'); });
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => mostrarVista(t.dataset.vista)));
   $('#filtro-chip').addEventListener('click', quitarFiltro);
+  $('#form-nueva-lista').addEventListener('submit', crearLista);
+  $('#form-item').addEventListener('submit', agregarItem);
+  $('#lista-volver').addEventListener('click', () => { listaAbierta = null; renderListas(); window.scrollTo(0, 0); });
+  $('#lista-menu').addEventListener('click', abrirMenuLista);
+  $('#form-renombrar').addEventListener('submit', renombrarLista);
+  $('#op-desmarcar').addEventListener('click', () => accionLista('desmarcar'));
+  $('#op-limpiar').addEventListener('click', () => accionLista('limpiar'));
+  $('#op-borrar-lista').addEventListener('click', () => accionLista('delete'));
+  $('#op-cerrar').addEventListener('click', () => $('#dlg-lista').close());
   $('#mes-ant').addEventListener('click', () => cambiarMes(-1));
   $('#mes-sig').addEventListener('click', () => cambiarMes(1));
   $('#btn-config').addEventListener('click', abrirConfig);

@@ -117,9 +117,14 @@ Copia de la app para probar cambios de diseño sin tocar producción ni el Sheet
 - **Interfaz:** con `playwright-core` en la carpeta temporal, usando WebKit (el motor de Safari) y `devices['iPhone 13']`, contra `python -m http.server` local o contra la página publicada. WebKit se descarga con `node --use-system-ca node_modules/playwright-core/cli.js install webkit`.
 - Usar IDs de prueba con prefijo `prueba-claude-` y **borrarlos al terminar**. El Sheet tiene datos reales.
 
+## Pendientes (ideas acordadas para más adelante)
+
+- **"Registrar gasto" desde una lista:** al terminar una compra, un botón que abra Cargar con Alimentación y el nombre de la lista ya completados. El dueño lo dejó para después (20/11/2026).
+
 ## Estado
 
 - 10/11/2026: primera versión en uso. Carga, resumen mensual por categoría, edición, borrado, uso sin conexión, separador de miles y botón × en el monto.
 - 20/11/2026: ícono con el $ grande y semitransparente (iOS no admite transparencia real en el ícono: la rellena con negro). Filtro por categoría en el Resumen: tocar una categoría filtra la card Gastos y la × del encabezado lo quita.
 - 20/11/2026: **v2 en producción**, rediseño hecho y aprobado en `dev/` (detalle en `historial/CAMBIOS.md`). Producción y `dev/` quedaron iguales salvo `mock.js`, las rutas `../` y el título.
+- 20/11/2026: **sección Listas en `dev/`, en revisión** (todavía no en producción). Decisiones del dueño: ítems solo de texto; una sola lista continua con pendientes arriba y tachados abajo (sin sección "Comprados"); no se comparte; arranca sin listas. Falta: aprobación del diseño, `Code.gs` con pestañas "Listas" e "Ítems" (el dueño lo implementa) y publicar como v3. Contrato de la API de listas: ver `servidorListas` en `dev/mock.js`.
 - Para ver el ícono nuevo hay que eliminar la app y volver a agregarla, porque iOS no actualiza el ícono. Eso borra la configuración y los pendientes del teléfono. Al publicarse la v2, el dueño iba a reinstalar.

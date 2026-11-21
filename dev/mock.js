@@ -43,6 +43,48 @@ window.GASTOS_DEV = true;
   }
 
   if (!ls.get(CLAVE_DB)) ls.set(CLAVE_DB, ejemplos());
+
+  // Listas de ejemplo
+  const CLAVE_LISTAS = PREF + '.servidor-listas';
+  if (!ls.get(CLAVE_LISTAS)) {
+    const t = Date.now();
+    const item = (id, lista, texto, hecho, n) => ({ id, lista, texto, hecho, orden: t - 100000 + n });
+    ls.set(CLAVE_LISTAS, {
+      listas: [
+        { id: 'lista-super', nombre: 'Supermercado', orden: t - 200000 },
+        { id: 'lista-pend', nombre: 'Pendientes', orden: t - 190000 },
+      ],
+      items: [
+        item('it-01', 'lista-super', 'Leche x2', false, 1), item('it-02', 'lista-super', 'Pan lactal', false, 2),
+        item('it-03', 'lista-super', 'Yerba', false, 3), item('it-04', 'lista-super', 'Tomates', false, 4),
+        item('it-05', 'lista-super', 'Fideos', true, 5), item('it-06', 'lista-super', 'Café', true, 6),
+        item('it-07', 'lista-super', 'Detergente', false, 7),
+        item('it-08', 'lista-pend', 'Pagar el seguro del auto', false, 8), item('it-09', 'lista-pend', 'Llamar al plomero', false, 9),
+        item('it-10', 'lista-pend', 'Renovar el DNI', true, 10),
+      ],
+    });
+  }
+
+  /** Mismas acciones que agrega apps-script/Code.gs para las listas. */
+  function servidorListas(req) {
+    const db = ls.get(CLAVE_LISTAS) || { listas: [], items: [] };
+    const it = req.item || {};
+    const [tipo, accion] = req.action.split('.');
+    if (req.action === 'listas') return { ok: true, listas: db.listas, items: db.items };
+    if (tipo === 'lista') {
+      if (accion === 'add' || accion === 'update') { db.listas = db.listas.filter(l => l.id !== it.id); db.listas.push({ id: it.id, nombre: it.nombre, orden: it.orden }); }
+      else if (accion === 'delete') { db.listas = db.listas.filter(l => l.id !== it.id); db.items = db.items.filter(i => i.lista !== it.id); }
+      else if (accion === 'limpiar') db.items = db.items.filter(i => !(i.lista === it.id && i.hecho));
+      else if (accion === 'desmarcar') db.items = db.items.map(i => (i.lista === it.id ? { ...i, hecho: false } : i));
+      else return { ok: false, error: 'Acción desconocida', invalido: true };
+    } else if (tipo === 'item') {
+      if (accion === 'add' || accion === 'update') { db.items = db.items.filter(i => i.id !== it.id); db.items.push({ id: it.id, lista: it.lista, texto: it.texto, hecho: !!it.hecho, orden: it.orden }); }
+      else if (accion === 'delete') db.items = db.items.filter(i => i.id !== it.id);
+      else return { ok: false, error: 'Acción desconocida', invalido: true };
+    } else return null;
+    ls.set(CLAVE_LISTAS, db);
+    return { ok: true };
+  }
   if (!ls.get(PREF + '.config')) ls.set(PREF + '.config', { url: 'https://script.google.com/macros/s/DEMO/exec', token: 'demo-token-de-desarrollo-0000000000' });
 
   // ---------- Servidor simulado (mismo contrato que apps-script/Code.gs) ----------
@@ -53,6 +95,8 @@ window.GASTOS_DEV = true;
     if (ls.get(CLAVE_OFFLINE)) throw new TypeError('Sin conexión (simulada)');
 
     const req = JSON.parse(opts && opts.body || '{}');
+    const resListas = servidorListas(req);
+    if (resListas) return new Response(JSON.stringify(resListas), { status: 200, headers: { 'Content-Type': 'application/json' } });
     let db = ls.get(CLAVE_DB) || [];
     let res;
     switch (req.action) {
