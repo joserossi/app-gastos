@@ -8,6 +8,26 @@ Para recuperar el código de una versión: `git checkout v1` (y `git checkout ma
 
 ---
 
+## v2 · desde el 20 de noviembre de 2026
+
+Rediseño de la interfaz.
+
+- Categorías en una grilla de 4 con íconos propios y un color para cada una; las no elegidas se atenúan.
+- Fecha con un selector Hoy · Ayer · Otro día y la fecha completa debajo.
+- Botón Guardar fijo abajo, siempre visible, que muestra el monto ("Guardar $ 12.500").
+- Al editar: borrar, Cancelar y Guardar cambios en la misma barra.
+- Resumen con promedio por día y comparación con el mes anterior al mismo día.
+- Barras por categoría en el verde de la app, con el ícono de color de cada categoría.
+- Lista de gastos más compacta.
+- Indicador de estado reducido a un punto de color (verde, ámbar con pendientes, rojo si falta configurar).
+
+| | Cargar | Resumen |
+|---|---|---|
+| Claro | ![](v2/1-cargar-claro.png) | ![](v2/2-resumen-claro.png) |
+| Oscuro | ![](v2/1-cargar-oscuro.png) | ![](v2/2-resumen-oscuro.png) |
+
+---
+
 ## v1 · 10 al 20 de noviembre de 2026
 
 Primera versión en uso.

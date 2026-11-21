@@ -30,7 +30,9 @@ Google Sheet "Gastos", pestaña "Gastos"
 |---|---|
 | `index.html` | Dos vistas (Cargar, Resumen), barra de pestañas, diálogo de configuración |
 | `app.js` | Toda la lógica: formulario, formato del monto, cola offline, sincronización, resumen |
-| `styles.css` | Tokens de color con modo oscuro, márgenes seguros del iPhone, inputs de 16px o más (evitan el zoom de iOS) |
+| `styles.css` | Tokens de color con modo oscuro (incluye `--cat-1`…`--cat-7`, una por categoría, validadas con la skill dataviz), márgenes seguros del iPhone, inputs de 16px o más (evitan el zoom de iOS) |
+| `dev/` | Entorno de desarrollo con datos de ejemplo (ver más abajo) |
+| `historial/` | Capturas y registro de cada versión publicada |
 | `sw.js` | Service worker: red primero y caché si no hay señal. **Subir `VERSION` en cada cambio.** |
 | `manifest.json`, `icons/` | Datos de instalación de la PWA. iOS usa `icon-180.png` como apple-touch-icon. |
 | `apps-script/Code.gs` | Backend. Se copia a mano en el editor de Apps Script. |
@@ -43,7 +45,7 @@ Columnas del Sheet: `ID | Fecha | Monto | Categoría | Descripción | Creado | M
 - `ID`: UUID generado en el teléfono. Hace que las altas sean idempotentes: si el ID ya existe, se actualiza en vez de duplicar.
 - `Fecha`: `yyyy-mm-dd`, elegida por el usuario (se pueden cargar días anteriores, no futuros).
 - `Monto`: número con 2 decimales como máximo.
-- `Categoría`: una de `Restaurant, Alimentación, Salud, Casa, Familia, Transporte, Ocio`. Está definida en `CATEGORIAS` en **dos lugares**, `app.js` (con emoji) y `Code.gs` (validación), y se cambian juntas.
+- `Categoría`: una de `Restaurant, Alimentación, Salud, Casa, Familia, Transporte, Ocio`. Está definida en `CATEGORIAS` en **dos lugares**, `app.js` (con su `clave`, que elige el ícono de `ICONOS` y la clase de color `.cat-<clave>`) y `Code.gs` (validación), y se cambian juntas. Una categoría nueva necesita además un ícono y un color en `styles.css`.
 - Zona horaria del Sheet: `America/Argentina/Buenos_Aires`, locale `es_AR`.
 - Las filas **no** siguen un orden. Al borrar, la última fila pasa al lugar de la borrada.
 
@@ -119,4 +121,5 @@ Copia de la app para probar cambios de diseño sin tocar producción ni el Sheet
 
 - 10/11/2026: primera versión en uso. Carga, resumen mensual por categoría, edición, borrado, uso sin conexión, separador de miles y botón × en el monto.
 - 20/11/2026: ícono con el $ grande y semitransparente (iOS no admite transparencia real en el ícono: la rellena con negro). Filtro por categoría en el Resumen: tocar una categoría filtra la card Gastos y la × del encabezado lo quita.
-- Para ver el ícono nuevo hay que eliminar la app y volver a agregarla, porque iOS no actualiza el ícono. Eso borra la configuración y los pendientes del teléfono. El dueño la va a reinstalar cuando termine la tanda de cambios.
+- 20/11/2026: **v2 en producción**, rediseño hecho y aprobado en `dev/` (detalle en `historial/CAMBIOS.md`). Producción y `dev/` quedaron iguales salvo `mock.js`, las rutas `../` y el título.
+- Para ver el ícono nuevo hay que eliminar la app y volver a agregarla, porque iOS no actualiza el ícono. Eso borra la configuración y los pendientes del teléfono. Al publicarse la v2, el dueño iba a reinstalar.
