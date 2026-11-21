@@ -90,6 +90,17 @@ Errores: `{ok:false, error, invalido?:true, reintentar?:true}`.
 
 No hace falta volver a correr `setup`. Cambiar el nombre del proyecto de Apps Script no afecta nada.
 
+## Historial de versiones (`historial/`)
+
+Cada pase a producción de un cambio visible es una versión nueva (`v1`, `v2`, …). El dueño quiere etiqueta y capturas, no copias navegables.
+1. **Antes** de tocar producción, verificar que la versión anterior ya tenga su entrada (la `v1` ya está hecha).
+2. Pasar los cambios a producción y publicar.
+3. Capturas de la versión nueva: servir la raíz con `python -m http.server 8765` y correr
+   `NODE_PATH=<carpeta con playwright-core>/node_modules node historial/capturar.js http://localhost:8765/ historial/vN`.
+   Usa datos de ejemplo y bloquea las llamadas a Google. Revisar las imágenes.
+4. Agregar la sección `vN` arriba en `historial/CAMBIOS.md` (qué cambió, en lenguaje de usuario, con la tabla de capturas).
+5. Commit, `git tag -a vN -m "..."`, `git push --follow-tags` y `gh release create vN --notes "..."`.
+
 ## Entorno de desarrollo (`dev/`)
 
 Copia de la app para probar cambios de diseño sin tocar producción ni el Sheet.
