@@ -1,5 +1,5 @@
 // Cambiá VERSION cada vez que subas cambios a GitHub.
-const VERSION = 'gastos-v6';
+const VERSION = 'gastos-v7';
 const ARCHIVOS = [
   './',
   './index.html',

@@ -1,17 +1,54 @@
 'use strict';
 
 // ---------- Constantes ----------
+// Cada categoría tiene un ícono y un color (clase .cat-<clave> en styles.css). El orden fija el color.
 const CATEGORIAS = [
-  { id: 'Restaurant', emo: '🍽️' },
-  { id: 'Alimentación', emo: '🛒' },
-  { id: 'Salud', emo: '💊' },
-  { id: 'Casa', emo: '🏠' },
-  { id: 'Familia', emo: '👨‍👩‍👧' },
-  { id: 'Transporte', emo: '🚗' },
-  { id: 'Ocio', emo: '🎉' },
+  { id: 'Restaurant', clave: 'restaurant' },
+  { id: 'Alimentación', clave: 'alimentacion' },
+  { id: 'Salud', clave: 'salud' },
+  { id: 'Casa', clave: 'casa' },
+  { id: 'Familia', clave: 'familia' },
+  { id: 'Transporte', clave: 'transporte' },
+  { id: 'Ocio', clave: 'ocio' },
 ];
-const EMO = Object.fromEntries(CATEGORIAS.map(c => [c.id, c.emo]));
-const K = { config: 'gastos.config', cola: 'gastos.cola', cache: 'gastos.cache' };
+const CLAVE = Object.fromEntries(CATEGORIAS.map(c => [c.id, c.clave]));
+
+// Íconos de línea propios (24×24, trazo). Texto fijo: es seguro insertarlo como SVG.
+const ICONOS = {
+  restaurant: '<path d="M7 3v18M4 3v5a3 3 0 0 0 6 0V3"/><path d="M17 21V3c-2.2 1.2-3.5 3.6-3.5 6.5V14H17"/>',
+  alimentacion: '<path d="M2.5 3.5h2.6l2.4 11a1.6 1.6 0 0 0 1.6 1.3h8.4a1.6 1.6 0 0 0 1.6-1.2l1.8-7.1H6.1"/><circle cx="9.5" cy="20" r="1.4"/><circle cx="17.5" cy="20" r="1.4"/>',
+  salud: '<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><path d="M12 8v8M8 12h8"/>',
+  casa: '<path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h4.5v-5.5h4V20h4.5V9.5"/>',
+  familia: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9.5" r="2.4"/><path d="M16.5 14.6A4.5 4.5 0 0 1 21.5 19"/>',
+  transporte: '<path d="M5 16.5H3.5V12l2-5h13l2 5v4.5H19"/><path d="M3.5 12h17"/><circle cx="7.5" cy="16.5" r="2"/><circle cx="16.5" cy="16.5" r="2"/><path d="M9.5 16.5h5"/>',
+  ocio: '<path d="M4 6h16a1 1 0 0 1 1 1v3a2 2 0 0 0 0 4v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a2 2 0 0 0 0-4V7a1 1 0 0 1 1-1z"/><path d="M15 6.5v2M15 11v2M15 15.5v2"/>',
+  ajustes: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  calendario: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  mas: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
+  resumen: '<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',
+  izquierda: '<path d="m15 18-6-6 6-6"/>',
+  derecha: '<path d="m9 18 6-6-6-6"/>',
+  papelera: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/>',
+};
+function svg(nombre) {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('viewBox', '0 0 24 24');
+  s.setAttribute('fill', 'none');
+  s.setAttribute('stroke', 'currentColor');
+  s.setAttribute('stroke-width', '1.9');
+  s.setAttribute('stroke-linecap', 'round');
+  s.setAttribute('stroke-linejoin', 'round');
+  s.setAttribute('aria-hidden', 'true');
+  s.setAttribute('class', 'ic');
+  s.innerHTML = ICONOS[nombre] || '';
+  return s;
+}
+/** Cuadrado de color con el ícono de la categoría. */
+const chipCat = cat => el('span', { className: `cat-chip cat-${CLAVE[cat] || 'ocio'}` }, svg(CLAVE[cat] || 'ocio'));
+
+// En desarrollo (dev/mock.js) los datos van a otras claves para no mezclarse con los reales.
+const PREF = window.GASTOS_DEV ? 'gastos-dev' : 'gastos';
+const K = { config: PREF + '.config', cola: PREF + '.cola', cache: PREF + '.cache' };
 const fmtEntero = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const fmtDecimal = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = { format: n => (Number.isInteger(Math.round(n * 100) / 100) ? fmtEntero : fmtDecimal).format(n) };
@@ -40,7 +77,10 @@ const nombreMes = mes => {
   const s = parseISO(mes + '-01').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
-const nombreDia = fecha => parseISO(fecha).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
+const nombreDia = fecha => parseISO(fecha).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
+const fechaLarga = fecha => parseISO(fecha).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+const soloMes = mes => parseISO(mes + '-01').toLocaleDateString('es-AR', { month: 'long' });
+const diasDelMes = mes => { const [y, m] = mes.split('-').map(Number); return new Date(y, m, 0).getDate(); };
 
 const nuevoId = () => (crypto.randomUUID ? crypto.randomUUID()
   : 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
@@ -104,6 +144,10 @@ function actualizarMontoUI() {
   $('#monto-borrar').hidden = !largo;
   inp.classList.toggle('mediano', largo > 9 && largo <= 12);
   inp.classList.toggle('chico', largo > 12);
+  // El botón muestra el monto que se va a guardar
+  // (al editar no entra junto a Borrar y Cancelar, así que solo dice "Guardar cambios")
+  const n = parseMonto(inp.value);
+  $('#btn-guardar').textContent = editando ? 'Guardar cambios' : (n > 0 ? `Guardar ${fmt.format(n)}` : 'Guardar gasto');
 }
 
 function borrarMonto() {
@@ -120,6 +164,7 @@ let filtroCat = null;        // categoría elegida en el Resumen (o null = todas
 let sincronizando = false;
 let enVuelo = null;          // qid de la operación que se está enviando
 let errorSync = '';
+const pidiendo = new Set();  // meses que se están pidiendo en segundo plano
 
 // ---------- API ----------
 class ErrorRed extends Error {}
@@ -245,16 +290,22 @@ function render() {
   if ($('#vista-resumen').classList.contains('activa')) renderResumen();
 }
 
+/** Punto de estado: verde al día, ámbar con pendientes, rojo si falta configurar. Al tocarlo explica el detalle. */
+let estadoTexto = '';
 function renderEstado() {
-  const el = $('#estado');
+  const b = $('#estado');
   const pend = store.get(K.cola, []).length;
-  el.className = 'estado';
-  if (!config()) { el.textContent = 'Sin configurar'; return; }
-  if (sincronizando) { el.textContent = '↻ Sincronizando…'; return; }
-  if (errorSync) { el.textContent = '⚠ ' + errorSync + (pend ? ` · ${pend} pend.` : ''); el.classList.add('pend'); return; }
-  if (pend) { el.textContent = `↻ ${pend} pendiente${pend > 1 ? 's' : ''}`; el.classList.add('pend'); return; }
-  el.textContent = '✓ Al día';
-  el.classList.add('ok');
+  const pendTxt = pend ? `${pend} gasto${pend > 1 ? 's' : ''} sin subir` : '';
+  let estado, corto = '';
+  if (!config()) { estado = 'err'; corto = 'Configurar'; estadoTexto = 'Falta configurar la conexión'; }
+  else if (sincronizando) { estado = 'sync'; estadoTexto = 'Sincronizando…'; }
+  else if (errorSync && /token|configur|inválida/i.test(errorSync)) { estado = 'err'; estadoTexto = errorSync; corto = pend ? String(pend) : ''; }
+  else if (errorSync || pend) { estado = 'pend'; corto = pend ? String(pend) : ''; estadoTexto = [errorSync, pendTxt].filter(Boolean).join(' · ') + (pend ? '. Se suben solos al volver la conexión.' : ''); }
+  else { estado = 'ok'; estadoTexto = 'Todo guardado en Google Sheets'; }
+  b.dataset.estado = estado;
+  b.querySelector('.estado-txt').textContent = corto;
+  b.setAttribute('aria-label', estadoTexto);
+  b.title = estadoTexto;
 }
 
 function renderResumen() {
@@ -265,7 +316,34 @@ function renderResumen() {
   const items = gastosDelMes(mesActual);
   const total = items.reduce((s, i) => s + i.monto, 0);
   $('#total-mes').textContent = fmt.format(total);
-  $('#cant-mes').textContent = items.length ? `${items.length} gasto${items.length > 1 ? 's' : ''}` : '';
+
+  // Cantidad y promedio diario (en el mes en curso, sobre los días transcurridos)
+  const hoy = hoyISO();
+  const esActual = mesActual === mesDe(hoy);
+  const diasCorridos = esActual ? Number(hoy.slice(8)) : diasDelMes(mesActual);
+  $('#hero-detalle').textContent = items.length
+    ? `${items.length} gasto${items.length > 1 ? 's' : ''} · ${fmt.format(Math.round(total / diasCorridos))} por día`
+    : 'Sin gastos cargados';
+
+  // Comparación con el mes anterior (en el mes en curso, hasta el mismo día)
+  const ant = moverMes(mesActual, -1);
+  const comp = $('#comparacion');
+  if (store.get(K.cache, {})[ant]) {
+    const totalAnt = gastosDelMes(ant).filter(i => Number(i.fecha.slice(8)) <= diasCorridos).reduce((s, i) => s + i.monto, 0);
+    const pct = totalAnt ? Math.round(((total - totalAnt) / totalAnt) * 100) : null;
+    comp.hidden = pct === null || !items.length;
+    if (pct !== null) {
+      const ref = esActual ? `que a esta altura de ${soloMes(ant)}` : `que en ${soloMes(ant)}`;
+      comp.textContent = pct === 0 ? `Igual ${ref}` : `${pct > 0 ? '↑' : '↓'} ${Math.abs(pct)}% ${pct > 0 ? 'más' : 'menos'} ${ref}`;
+      comp.className = 'comparacion' + (pct > 0 ? ' sube' : pct < 0 ? ' baja' : '');
+    }
+  } else {
+    comp.hidden = true;
+    if (config() && !pidiendo.has(ant)) {
+      pidiendo.add(ant);
+      cargarMes(ant).then(renderResumen).catch(() => {}).finally(() => pidiendo.delete(ant));
+    }
+  }
 
   // Por categoría
   const porCat = {};
@@ -279,8 +357,9 @@ function renderResumen() {
   for (const [cat, monto] of filas) {
     const pct = total ? Math.round((monto / total) * 100) : 0;
     const barra = el('div', { className: 'barra' }, el('i', { style: `width:${max ? (monto / max) * 100 : 0}%` }));
-    const btn = el('button', { type: 'button', className: 'cat-btn' + (filtroCat === cat ? ' activa' : '') },
-      el('span', {}, `${EMO[cat] || '•'} ${cat}`),
+    const btn = el('button', { type: 'button', className: `cat-btn cat-${CLAVE[cat] || 'ocio'}` + (filtroCat === cat ? ' activa' : '') },
+      chipCat(cat),
+      el('span', { className: 'nombre' }, cat),
       el('span', { className: 'monto' }, fmt.format(monto), el('span', { className: 'pct' }, `${pct}%`)),
       barra);
     btn.setAttribute('aria-pressed', String(filtroCat === cat));
@@ -294,7 +373,7 @@ function renderResumen() {
   const visibles = filtroCat ? items.filter(i => i.categoria === filtroCat) : items;
   if (filtroCat) {
     const sub = visibles.reduce((s, i) => s + i.monto, 0);
-    $('#filtro-texto').textContent = `${EMO[filtroCat] || ''} ${filtroCat} · ${fmt.format(sub)}`;
+    $('#filtro-texto').textContent = `${filtroCat} · ${fmt.format(sub)}`;
   }
 
   // Lista agrupada por día
@@ -312,7 +391,7 @@ function renderResumen() {
       el('div', { className: 'dia-head' }, el('span', {}, nombreDia(fecha)), el('span', {}, fmt.format(totDia))));
     for (const g of gs) {
       const btn = el('button', { className: 'item', type: 'button' },
-        el('span', { className: 'emo' }, EMO[g.categoria] || '•'),
+        chipCat(g.categoria),
         el('span', { className: 'info' },
           el('span', { className: 'cat' }, g.categoria),
           g.descripcion ? el('span', { className: 'desc' }, g.descripcion) : ''),
@@ -351,15 +430,29 @@ function el(tag, props, ...hijos) {
 function renderCategorias() {
   const cont = $('#categorias');
   cont.replaceChildren();
+  cont.classList.toggle('con-seleccion', !!categoriaSel);
   for (const c of CATEGORIAS) {
-    const b = el('button', { type: 'button', className: 'chip' }, el('span', { className: 'emo' }, c.emo), c.id);
+    const b = el('button', { type: 'button', className: 'cat-tile' }, chipCat(c.id), el('span', { className: 'cat-nombre' }, c.id));
     b.setAttribute('aria-pressed', String(categoriaSel === c.id));
     b.addEventListener('click', () => { categoriaSel = c.id; renderCategorias(); ocultarError(); });
     cont.append(b);
   }
 }
 
-function setFecha(f) { $('#fecha').value = f; }
+function setFecha(f) {
+  $('#fecha').value = f;
+  renderFecha();
+}
+
+/** Hoy / Ayer / Otro día: marca el segmento activo y escribe la fecha completa debajo. */
+function renderFecha() {
+  const f = $('#fecha').value;
+  const cual = f === hoyISO() ? '0' : f === haceDias(1) ? '1' : 'otro';
+  document.querySelectorAll('.seg[data-dias]').forEach(s => s.classList.toggle('activa', s.dataset.dias === cual));
+  $('#seg-otro').classList.toggle('activa', cual === 'otro');
+  $('#fecha-otro-txt').textContent = cual === 'otro' && f ? nombreDia(f) : 'Otro día';
+  $('#fecha-larga').textContent = f ? fechaLarga(f) : '';
+}
 
 function limpiarForm(conservarFecha) {
   editando = null;
@@ -369,8 +462,8 @@ function limpiarForm(conservarFecha) {
   $('#descripcion').value = '';
   if (!conservarFecha) setFecha(hoyISO());
   $('#titulo').textContent = 'Nuevo gasto';
-  $('#btn-guardar').textContent = 'Guardar gasto';
-  $('#acciones-edicion').hidden = true;
+  $('#btn-borrar').hidden = true;
+  $('#btn-cancelar').hidden = true;
   ocultarError();
   renderCategorias();
 }
@@ -383,8 +476,8 @@ function editar(g) {
   $('#descripcion').value = g.descripcion || '';
   setFecha(g.fecha);
   $('#titulo').textContent = 'Editar gasto';
-  $('#btn-guardar').textContent = 'Guardar cambios';
-  $('#acciones-edicion').hidden = false;
+  $('#btn-borrar').hidden = false;
+  $('#btn-cancelar').hidden = false;
   renderCategorias();
   mostrarVista('cargar', true);
 }
@@ -432,6 +525,7 @@ function mostrarVista(nombre, mantenerEdicion) {
   if (nombre !== 'cargar' && editando && !mantenerEdicion) limpiarForm();
   document.querySelectorAll('.vista').forEach(v => v.classList.toggle('activa', v.id === 'vista-' + nombre));
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('activa', t.dataset.vista === nombre));
+  document.body.classList.toggle('en-cargar', nombre === 'cargar');
   if (nombre === 'resumen') { $('#titulo').textContent = 'Resumen'; renderResumen(); }
   else $('#titulo').textContent = editando ? 'Editar gasto' : 'Nuevo gasto';
   window.scrollTo(0, 0);
@@ -510,8 +604,12 @@ function toast(msg) {
 
 // ---------- Inicio ----------
 function init() {
+  document.querySelectorAll('[data-icono]').forEach(n => n.replaceChildren(svg(n.dataset.icono)));
   limpiarForm();
   $('#fecha').max = hoyISO();
+  $('#fecha').addEventListener('change', renderFecha);
+  // En navegadores de escritorio el calendario no se abre tocando el campo invisible
+  $('#fecha').addEventListener('click', e => { try { e.target.showPicker(); } catch { /* iOS lo abre solo */ } });
   $('#form').addEventListener('submit', guardar);
   $('#monto').addEventListener('input', alEscribirMonto);
   $('#monto-borrar').addEventListener('pointerdown', e => e.preventDefault()); // no cerrar el teclado
@@ -527,7 +625,11 @@ function init() {
   $('#cfg-guardar').addEventListener('click', guardarConfig);
   $('#form-config').addEventListener('submit', guardarConfig);
   $('#cfg-cancelar').addEventListener('click', () => $('#dlg-config').close());
-  $('#estado').addEventListener('click', () => (config() ? sincronizar() : abrirConfig()));
+  $('#estado').addEventListener('click', () => {
+    if (!config()) return abrirConfig();
+    toast(estadoTexto);
+    sincronizar();
+  });
 
   window.addEventListener('online', sincronizar);
   document.addEventListener('visibilitychange', () => {
@@ -540,7 +642,7 @@ function init() {
   render();
   if (!config()) abrirConfig(); else sincronizar();
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && !window.GASTOS_DEV) navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
 init();
