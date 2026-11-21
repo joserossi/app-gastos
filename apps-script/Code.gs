@@ -12,6 +12,12 @@ const HOJA = 'Gastos';
 const ENCABEZADOS = ['ID', 'Fecha', 'Monto', 'Categoría', 'Descripción', 'Creado', 'Modificado'];
 const CATEGORIAS = ['Restaurant', 'Alimentación', 'Salud', 'Casa', 'Familia', 'Transporte', 'Ocio'];
 
+// Listas (se crean solas la primera vez que se usan)
+const HOJA_LISTAS = 'Listas';
+const ENC_LISTAS = ['ID', 'Nombre', 'Orden', 'Creada'];
+const HOJA_ITEMS = 'Ítems';
+const ENC_ITEMS = ['ID', 'Lista', 'Texto', 'Hecho', 'Orden', 'Creado', 'Modificado'];
+
 /** Ejecutar una vez desde el editor. Muestra el token en el registro de ejecución. */
 function setup() {
   const sh = hoja_();
@@ -54,6 +60,7 @@ function doPost(e) {
       // Lecturas: sin bloqueo, responden aunque haya una escritura en curso
       case 'ping': res = { ok: true }; break;
       case 'list': res = { ok: true, items: listar_(String(req.mes || '')) }; break;
+      case 'listas': res = { ok: true, listas: leerListas_(), items: leerItems_() }; break;
       // Escrituras: con bloqueo corto para que dos cambios no se pisen
       case 'add': case 'update': case 'delete':
         res = conBloqueo_(function () {
@@ -61,7 +68,11 @@ function doPost(e) {
           return { ok: true, item: guardar_(validar_(req.item), req.action === 'add') };
         });
         break;
-      default: throw Invalido_('Acción desconocida: ' + req.action);
+      default:
+        if (!/^(lista\.(add|update|delete|limpiar|desmarcar)|item\.(add|update|delete))$/.test(String(req.action))) {
+          throw Invalido_('Acción desconocida: ' + req.action);
+        }
+        res = conBloqueo_(function () { return accionListas_(req.action, req.item || {}); });
     }
   } catch (err) {
     res = { ok: false, error: String(err && err.message || err), invalido: !!(err && err.invalido) };
@@ -151,6 +162,109 @@ function borrar_(id) {
     sh.getRange(fila, 1, 1, ancho).clearContent();
   }
 }
+
+// ---------- Listas ----------
+
+function hojaExistente_(nombre) {
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombre);
+}
+
+function hojaCon_(nombre, encabezados) {
+  const sh = hojaExistente_(nombre) || SpreadsheetApp.getActiveSpreadsheet().insertSheet(nombre);
+  if (sh.getLastRow() === 0) {
+    sh.getRange(1, 1, 1, encabezados.length).setValues([encabezados]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function idValido_(v) {
+  const id = String(v || '');
+  if (!/^[A-Za-z0-9-]{8,64}$/.test(id)) throw Invalido_('ID inválido');
+  return id;
+}
+
+function textoValido_(v, max, campo) {
+  const t = String(v || '').trim().slice(0, max);
+  if (!t) throw Invalido_(campo + ' vacío');
+  return t;
+}
+
+const ordenValido_ = v => (isFinite(Number(v)) ? Number(v) : Date.now());
+
+/** Borra las filas que cumplen la condición reescribiendo el bloque (sin deleteRow, que puede tardar minutos). */
+function borrarDonde_(sh, ancho, condicion) {
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return;
+  const filas = sh.getRange(2, 1, n, ancho).getValues();
+  const quedan = filas.filter(function (f) { return !condicion(f); });
+  if (quedan.length === filas.length) return;
+  if (quedan.length) sh.getRange(2, 1, quedan.length, ancho).setValues(quedan.map(function (f) { return f.map(comoTexto_); }));
+  sh.getRange(2 + quedan.length, 1, filas.length - quedan.length, ancho).clearContent();
+}
+
+function accionListas_(accion, it) {
+  const partes = accion.split('.');
+  const tipo = partes[0], verbo = partes[1];
+  const id = idValido_(it.id);
+  const items = hojaExistente_(HOJA_ITEMS);
+
+  if (tipo === 'lista') {
+    const sh = hojaCon_(HOJA_LISTAS, ENC_LISTAS);
+    if (verbo === 'add' || verbo === 'update') {
+      const nombre = comoTexto_(textoValido_(it.nombre, 60, 'Nombre'));
+      const fila = buscarFila_(sh, id);
+      if (fila) sh.getRange(fila, 2, 1, 2).setValues([[nombre, ordenValido_(it.orden)]]);
+      else sh.appendRow([id, nombre, ordenValido_(it.orden), new Date()]);
+    } else if (verbo === 'delete') {
+      borrarDonde_(sh, ENC_LISTAS.length, function (f) { return String(f[0]) === id; });
+      if (items) borrarDonde_(items, ENC_ITEMS.length, function (f) { return String(f[1]) === id; });
+    } else if (verbo === 'limpiar') {
+      if (items) borrarDonde_(items, ENC_ITEMS.length, function (f) { return String(f[1]) === id && f[3] === true; });
+    } else if (verbo === 'desmarcar' && items && items.getLastRow() > 1) {
+      const n = items.getLastRow() - 1;
+      const datos = items.getRange(2, 2, n, 3).getValues();   // Lista, Texto, Hecho
+      items.getRange(2, 4, n, 1).setValues(datos.map(function (f) { return [String(f[0]) === id ? false : f[2] === true]; }));
+    }
+    return { ok: true };
+  }
+
+  // Ítems
+  const sh = hojaCon_(HOJA_ITEMS, ENC_ITEMS);
+  if (verbo === 'delete') {
+    borrarDonde_(sh, ENC_ITEMS.length, function (f) { return String(f[0]) === id; });
+  } else {
+    const lista = idValido_(it.lista);
+    const texto = comoTexto_(textoValido_(it.texto, 200, 'Texto'));
+    const hecho = it.hecho === true;
+    const fila = buscarFila_(sh, id);
+    if (fila) {
+      sh.getRange(fila, 2, 1, 4).setValues([[lista, texto, hecho, ordenValido_(it.orden)]]);
+      sh.getRange(fila, 7).setValue(new Date());
+    } else {
+      sh.appendRow([id, lista, texto, hecho, ordenValido_(it.orden), new Date(), '']);
+    }
+  }
+  return { ok: true };
+}
+
+function leerListas_() {
+  const sh = hojaExistente_(HOJA_LISTAS);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues()
+    .filter(function (f) { return f[0]; })
+    .map(function (f) { return { id: String(f[0]), nombre: String(f[1]), orden: Number(f[2]) || 0 }; });
+}
+
+function leerItems_() {
+  const sh = hojaExistente_(HOJA_ITEMS);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 5).getValues()
+    .filter(function (f) { return f[0]; })
+    .map(function (f) { return { id: String(f[0]), lista: String(f[1]), texto: String(f[2]), hecho: f[3] === true, orden: Number(f[4]) || 0 }; });
+}
+
+// ---------- Gastos: lectura ----------
 
 function listar_(mes) {
   if (!/^\d{4}-\d{2}$/.test(mes)) throw Invalido_('Mes inválido');
